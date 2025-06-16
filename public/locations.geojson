@@ -1,0 +1,186 @@
+{
+     "type": "FeatureCollection",
+     "features": [
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [51.3890, 35.6892]
+         },
+         "properties": {
+           "name": "تهران",
+           "category": "منطقه نا امن",
+           "population": "9,500,000",
+           "description": "پایتخت و بزرگترین شهر ایران",
+           "established": "۱۲۰۰ ق.م",
+           "area": "730 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [59.6077, 36.2974]
+         },
+         "properties": {
+           "name": "مشهد",
+           "category": "منطقه نا امن",
+           "population": "3,400,000",
+           "description": "دومین شهر بزرگ ایران و مرکز زیارت",
+           "established": "۸۱۸ م",
+           "area": "351 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [51.6746, 32.6539]
+         },
+         "properties": {
+           "name": "اصفهان",
+           "category": "منطقه نا امن",
+           "population": "2,220,000",
+           "description": "نصف جهان - مرکز فرهنگ و هنر ایران",
+           "established": "۴۰۰ ق.م",
+           "area": "551 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [52.5387, 29.6036]
+         },
+         "properties": {
+           "name": "شیراز",
+           "category": "منطقه نا امن",
+           "population": "1,870,000",
+           "description": "شهر شعر و ادب و پایتخت فرهنگی ایران",
+           "established": "۵۱۵ ق.م",
+           "area": "240 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [46.2919, 38.0746]
+         },
+         "properties": {
+           "name": "تبریز",
+           "category": "منطقه نا امن",
+           "population": "1,740,000",
+           "description": "مرکز تجاری شمال غرب ایران",
+           "established": "۷۹۱ م",
+           "area": "237 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [48.5164, 32.6546]
+         },
+         "properties": {
+           "name": "اهواز",
+           "category": "منطقه نا امن",
+           "population": "1,350,000",
+           "description": "مرکز صنعت نفت و گاز ایران",
+           "established": "۲۷۰ ق.م",
+           "area": "185 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [56.8389, 24.8615]
+         },
+         "properties": {
+           "name": "بندرعباس",
+           "category": "منطقه نا امن",
+           "population": "750,000",
+           "description": "مهم‌ترین بندر جنوبی ایران در خلیج فارس",
+           "established": "۱۶۲۳ م",
+           "area": "312 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [50.8764, 34.6401]
+         },
+         "properties": {
+           "name": "قم",
+           "category": "منطقه نا امن",
+           "population": "1,290,000",
+           "description": "مرکز مذهبی و حوزه علمیه ایران",
+           "established": "۶۴۴ م",
+           "area": "11,526 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [48.6693, 31.3203]
+         },
+         "properties": {
+           "name": "کرمانشاه",
+           "category": "منطقه نا امن",
+           "population": "950,000",
+           "description": "مرکز فرهنگی غرب ایران",
+           "established": "۴ ق.م",
+           "area": "96 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [57.0788, 30.2839]
+         },
+         "properties": {
+           "name": "کرمان",
+           "category": "منطقه نا امن",
+           "population": "740,000",
+           "description": "مرکز فرش و پسته ایران",
+           "established": "۳ ق.م",
+           "area": "38 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [49.5916, 37.4482]
+         },
+         "properties": {
+           "name": "رشت",
+           "category": "منطقه نا امن",
+           "population": "680,000",
+           "description": "مرکز شمال ایران و دروازه گیلان",
+           "established": "۱۳ ق.م",
+           "area": "180 کیلومتر مربع"
+         }
+       },
+       {
+         "type": "Feature",
+         "geometry": {
+           "type": "Point",
+           "coordinates": [54.3569, 31.8974]
+         },
+         "properties": {
+           "name": "یزد",
+           "category": "منطقه نا امن",
+           "population": "630,000",
+           "description": "شهر بادگیرها و معماری کهن ایران",
+           "established": "۳۰۰۰ ق.م",
+           "area": "96 کیلومتر مربع"
+         }
+       }
+     ]
+   }
+   
