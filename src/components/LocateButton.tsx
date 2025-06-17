@@ -12,6 +12,7 @@ const LocateButton: React.FC<LocateButtonProps> = ({ onLocationFound, isDarkMode
   const [error, setError] = useState<string | null>(null);
   const [watchId, setWatchId] = useState<number | null>(null);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [hasLocationPermission, setHasLocationPermission] = useState(false);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -22,30 +23,43 @@ const LocateButton: React.FC<LocateButtonProps> = ({ onLocationFound, isDarkMode
     };
   }, [watchId]);
 
+  useEffect(() => {
+    const savedPermission = localStorage.getItem('location-permission-granted');
+    if (savedPermission === 'true') {
+      setHasLocationPermission(true);
+      // Auto-start location tracking
+      startLocationTracking();
+    }
+  }, []);
+
   const handleLocateClick = () => {
     setError(null);
 
     if (!navigator.geolocation) {
       setError('مرورگر شما از موقعیت‌یابی پشتیبانی نمی‌کند');
-      // Auto clear error after 5 seconds
-      setTimeout(() => setError(null), 5000);
       return;
     }
 
     if (watchId) {
-      // Stop watching
-      navigator.geolocation.clearWatch(watchId);
-      setWatchId(null);
-      setIsLocating(false);
+      // Stop tracking
+      handleStopTracking();
       return;
     }
 
-    // Show privacy modal before requesting location
-    setShowPrivacyModal(true);
+    // If permission already granted, start directly
+    if (hasLocationPermission) {
+      startLocationTracking();
+    } else {
+      // Show privacy modal for first time
+      setShowPrivacyModal(true);
+    }
   };
 
   const handlePrivacyAccept = () => {
     setShowPrivacyModal(false);
+    setHasLocationPermission(true);
+    // Save to localStorage
+    localStorage.setItem('location-permission-granted', 'true');
     startLocationTracking();
   };
 
@@ -120,6 +134,16 @@ const LocateButton: React.FC<LocateButtonProps> = ({ onLocationFound, isDarkMode
     setWatchId(id);
   };
 
+  const handleStopTracking = () => {
+    if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
+      setWatchId(null);
+      setIsLocating(false);
+      setHasLocationPermission(false);
+      localStorage.removeItem('location-permission-granted');
+    }
+  };
+
   const isActive = watchId !== null;
   const isRequestingLocation = isLocating && !isActive;
 
@@ -132,7 +156,7 @@ const LocateButton: React.FC<LocateButtonProps> = ({ onLocationFound, isDarkMode
         isDarkMode={isDarkMode}
       />
       
-      <div className="fixed top-36 right-4 z-50 flex flex-col gap-2">
+      <div className="fixed top-36 right-4 z-20 flex flex-col gap-2">
         <style>{`
           @keyframes fadeIn {
             from {
@@ -164,15 +188,22 @@ const LocateButton: React.FC<LocateButtonProps> = ({ onLocationFound, isDarkMode
           }
           ${isRequestingLocation ? 'opacity-75 cursor-not-allowed' : ''}
         `}
-        title={isActive ? 'توقف ردیابی موقعیت' : isRequestingLocation ? 'در حال درخواست موقعیت...' : 'نمایش موقعیت من'}
+        title={
+          watchId 
+            ? 'توقف ردیابی موقعیت' 
+            : hasLocationPermission 
+              ? 'شروع ردیابی موقعیت' 
+              : 'نمایش موقعیت من'
+        }
       >
         {isRequestingLocation ? (
           <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent"></div>
-        ) : isActive ? (
+        ) : watchId ? (
           <Navigation size={18} />
 
         ) : (
           <NavigationOff size={18} />
+
         )}
       </button>
       

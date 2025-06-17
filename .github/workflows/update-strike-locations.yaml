@@ -1,0 +1,34 @@
+name: Update IDF Strikes GeoJSON
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+
+jobs:
+  update-strikes-geojson:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Fetch latest strikes geojson
+        env:
+          STRIKES_URL_QUERY: ${{ secrets.STRIKES_URL_QUERY }}
+        run: |
+          mkdir -p public/sources
+          curl -sSL "${STRIKES_URL_QUERY}" -o public/sources/strikes.geojson
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/sources/strikes.geojson
+          if ! git diff --cached --quiet; then
+            git commit -m "Update strikes.geojson from ArcGIS API"
+            git push origin main
+          else
+            echo "No changes to commit."
+          fi
