@@ -1,5 +1,6 @@
 import * as turf from "@turf/turf";
-import type { LocationDataType, LocationFeature } from "../types";
+import type { LayersData } from "../map-entities/layers.context.types";
+import type { LocationFeature } from "../types";
 
 export interface ProximityResult {
 	isInDanger: boolean;
@@ -12,15 +13,9 @@ export interface ProximityResult {
 	bufferZone: unknown | null;
 }
 
-export interface LocationData {
-	strikes?: LocationDataType;
-	sites?: LocationDataType;
-	nuclear?: LocationDataType;
-}
-
 export const checkLocationProximity = (
 	userLocation: { lat: number; lng: number },
-	locationData: LocationData,
+	layersData: LayersData,
 	radiusKm = 3,
 ): ProximityResult => {
 	console.log("🎯 checkLocationProximity called with:", {
@@ -36,8 +31,8 @@ export const checkLocationProximity = (
 	const nearbyPoints: ProximityResult["nearbyPoints"] = [];
 
 	// Check strikes
-	if (locationData.strikes?.features) {
-		locationData.strikes.features.forEach((feature) => {
+	if (layersData.strikes.data?.features) {
+		layersData.strikes.data.features.forEach((feature) => {
 			if (feature.geometry?.type === "Point") {
 				const point = turf.point(feature.geometry.coordinates);
 				const distance = turf.distance(userPoint, point, "kilometers");
@@ -55,8 +50,8 @@ export const checkLocationProximity = (
 	}
 
 	// Check sites
-	if (locationData.sites?.features) {
-		locationData.sites.features.forEach((feature) => {
+	if (layersData.sites.data?.features) {
+		layersData.sites.data.features.forEach((feature) => {
 			if (feature.geometry?.type === "Point") {
 				const point = turf.point(feature.geometry.coordinates);
 				const distance = turf.distance(userPoint, point, "kilometers");
@@ -74,8 +69,8 @@ export const checkLocationProximity = (
 	}
 
 	// Check nuclear
-	if (locationData.nuclear?.features) {
-		locationData.nuclear.features.forEach((feature) => {
+	if (layersData.nuclear.data?.features) {
+		layersData.nuclear.data.features.forEach((feature) => {
 			if (feature.geometry?.type === "Point") {
 				const point = turf.point(feature.geometry.coordinates);
 				const distance = turf.distance(userPoint, point, "kilometers");

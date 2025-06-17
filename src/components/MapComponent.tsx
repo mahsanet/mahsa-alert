@@ -7,11 +7,14 @@ import maplibregl, {
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { useLayers } from "../map-entities/layers.context";
+import { useLayersDataRef } from "../map-entities/layers.context.ref";
 import type {
 	LocationDataType,
 	LocationFeature,
 	LocationProperties,
 } from "../types";
+import { loadPngAsImage } from "../utils/loadPngAsImage";
 
 interface MapComponentProps {
 	onLocationHover: (
@@ -19,7 +22,6 @@ interface MapComponentProps {
 		mouseEvent?: MouseEvent,
 	) => void;
 	onMouseMove: (mouseEvent: MouseEvent) => void;
-	layerVisibility: { [layerId: string]: boolean };
 	isDarkMode: boolean;
 	shouldZoomToEvac?: boolean;
 	userLocation?: { lat: number; lng: number } | null;
@@ -70,12 +72,14 @@ const calculateBounds = (
 const MapComponent: React.FC<MapComponentProps> = ({
 	onLocationHover,
 	onMouseMove,
-	layerVisibility,
 	isDarkMode,
 	shouldZoomToEvac,
 	userLocation,
 	onDataSourcesLoad,
 }) => {
+	const { layers } = useLayers();
+	const layersDataRef = useLayersDataRef();
+
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -124,36 +128,29 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		onMouseMoveRef.current = onMouseMove;
 	}, [onLocationHover, onMouseMove]);
 
+	// Set layer visibility layout properties
 	useEffect(() => {
 		if (!map.current) return;
 
-		Object.entries(layerVisibility).forEach(([layerId, visible]) => {
-			let layerIds: string[] = [];
-
-			if (layerId === "evac") {
-				layerIds = [`${layerId}-fill`, `${layerId}-line`];
-			} else {
-				layerIds = [`${layerId}-layer`, `${layerId}-label`];
-			}
-
-			layerIds.forEach((id) => {
-				if (map.current?.getLayer(id)) {
+		layers.forEach(({ visible, mapIds }) => {
+			mapIds.forEach((mapId) => {
+				if (map.current?.getLayer(mapId)) {
 					map.current?.setLayoutProperty(
-						id,
+						mapId,
 						"visibility",
 						visible ? "visible" : "none",
 					);
 				}
 			});
 		});
-	}, [layerVisibility]);
+	}, [layers]);
 
 	// Zoom to evacuation area when shouldZoomToEvac is true
 	useEffect(() => {
-		if (!map.current || !shouldZoomToEvac || !dataSourcesRef.current.evac)
+		if (!map.current || !shouldZoomToEvac || !layersDataRef.current.evac.data)
 			return;
 
-		const bounds = calculateBounds(dataSourcesRef.current.evac);
+		const bounds = calculateBounds(layersDataRef.current.evac.data);
 		if (bounds) {
 			map.current.fitBounds(bounds, {
 				padding: 10,
@@ -161,7 +158,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 				maxZoom: 13,
 			});
 		}
-	}, [shouldZoomToEvac]);
+	}, [shouldZoomToEvac, layersDataRef.current.evac.data]);
 
 	// Update user location marker
 	useEffect(() => {
@@ -334,31 +331,24 @@ const MapComponent: React.FC<MapComponentProps> = ({
 				if (!map.current || !map.current.isStyleLoaded()) return;
 
 				try {
-					async function loadPngAsImage(url: string) {
-						const response = await fetch(url);
-						const blob = await response.blob();
-						const imageBitmap = await createImageBitmap(blob);
-						return imageBitmap;
-					}
-
 					// Add images only if they don't exist
 					if (!map.current.hasImage("nuclear-icon")) {
-						map.current.addImage(
-							"nuclear-icon",
-							await loadPngAsImage("/assets/symbols/nuclear.png"),
-						);
+						const image = await loadPngAsImage("/assets/symbols/nuclear.png");
+						if (image) {
+							map.current.addImage("nuclear-icon", image);
+						}
 					}
 					if (!map.current.hasImage("missile-base-icon")) {
-						map.current.addImage(
-							"missile-base-icon",
-							await loadPngAsImage("/assets/symbols/missile.png"),
-						);
+						const image = await loadPngAsImage("/assets/symbols/missile.png");
+						if (image) {
+							map.current.addImage("missile-base-icon", image);
+						}
 					}
 					if (!map.current.hasImage("explosion-icon")) {
-						map.current.addImage(
-							"explosion-icon",
-							await loadPngAsImage("/assets/symbols/explosion.png"),
-						);
+						const image = await loadPngAsImage("/assets/symbols/explosion.png");
+						if (image) {
+							map.current.addImage("explosion-icon", image);
+						}
 					}
 
 					// Load data sources

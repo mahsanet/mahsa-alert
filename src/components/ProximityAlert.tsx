@@ -1,22 +1,20 @@
 import { AlertTriangle, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useLayers } from "../map-entities/layers.context";
 import {
 	checkLocationProximity,
 	generateWarningMessage,
-	type LocationData,
 	type ProximityResult,
 } from "../utils/locationProximity";
 
 interface ProximityAlertProps {
 	userLocation: { lat: number; lng: number } | null;
-	locationData: LocationData;
 }
 
-const ProximityAlert: React.FC<ProximityAlertProps> = ({
-	userLocation,
-	locationData,
-}) => {
+const ProximityAlert: React.FC<ProximityAlertProps> = ({ userLocation }) => {
+	const { layersData } = useLayers();
+
 	const [proximityResult, setProximityResult] =
 		useState<ProximityResult | null>(null);
 	const [isVisible, setIsVisible] = useState(false);
@@ -31,13 +29,13 @@ const ProximityAlert: React.FC<ProximityAlertProps> = ({
 
 		console.log("🔍 Checking proximity for location:", userLocation);
 		console.log("📊 Available data sources:", {
-			strikes: locationData.strikes?.features?.length || 0,
-			sites: locationData.sites?.features?.length || 0,
-			nuclear: locationData.nuclear?.features?.length || 0,
+			strikes: layersData.strikes.data?.features?.length || 0,
+			sites: layersData.sites.data?.features?.length || 0,
+			nuclear: layersData.nuclear.data?.features?.length || 0,
 		});
 
 		try {
-			const result = checkLocationProximity(userLocation, locationData, 3);
+			const result = checkLocationProximity(userLocation, layersData, 3);
 			console.log("✅ Proximity result:", result);
 			setProximityResult(result);
 			setIsVisible(result.isInDanger);
@@ -47,7 +45,7 @@ const ProximityAlert: React.FC<ProximityAlertProps> = ({
 			setProximityResult(null);
 			setIsVisible(false);
 		}
-	}, [userLocation, locationData]);
+	}, [userLocation, layersData]);
 
 	const handleClose = () => {
 		setIsVisible(false);

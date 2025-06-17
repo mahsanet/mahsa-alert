@@ -1,21 +1,16 @@
 import type React from "react";
 import { useState } from "react";
 import { FaFilter, FaTimes } from "react-icons/fa";
-
-export interface LayerConfig {
-	id: string;
-	name: string;
-	color: string;
-	visible: boolean;
-}
+import type { layerIds } from "../map-entities/layers";
+import { useLayers } from "../map-entities/layers.context";
 
 interface LayerFilterProps {
-	layers: LayerConfig[];
-	onLayerToggle: (layerId: string, visible: boolean) => void;
+	onLayerToggle: (layerId: keyof typeof layerIds, visible: boolean) => void;
 }
 
-const LayerFilter: React.FC<LayerFilterProps> = ({ layers, onLayerToggle }) => {
+const LayerFilter: React.FC<LayerFilterProps> = ({ onLayerToggle }) => {
 	const [isExpanded, setIsExpanded] = useState(false);
+	const { layers, toggleLayerVisibility } = useLayers();
 
 	const toggleExpanded = () => {
 		setIsExpanded(!isExpanded);
@@ -45,13 +40,9 @@ const LayerFilter: React.FC<LayerFilterProps> = ({ layers, onLayerToggle }) => {
 					</div>
 
 					<div className="space-y-3">
-						{layers.map((layer) => (
+						{Object.values(layers).map((layer) => (
 							<div key={layer.id} className="flex items-center justify-between">
 								<div className="flex items-center space-x-3 rtl:space-x-reverse">
-									{/*<div*/}
-									{/*  className="w-3 h-3 rounded-full ml-2"*/}
-									{/*  style={{ backgroundColor: layer.color }}*/}
-									{/*/>*/}
 									<span className="text-white text-sm">{layer.name}</span>
 								</div>
 
@@ -59,7 +50,10 @@ const LayerFilter: React.FC<LayerFilterProps> = ({ layers, onLayerToggle }) => {
 									<input
 										type="checkbox"
 										checked={layer.visible}
-										onChange={(e) => onLayerToggle(layer.id, e.target.checked)}
+										onChange={(e) => {
+											toggleLayerVisibility(layer.id, e.target.checked);
+											onLayerToggle(layer.id, e.target.checked);
+										}}
 										className="sr-only peer"
 									/>
 									<div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
