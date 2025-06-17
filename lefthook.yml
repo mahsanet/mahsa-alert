@@ -1,0 +1,18 @@
+# https://lefthook.dev/configuration/
+
+pre-commit:
+  parallel: true
+  commands:
+    check:
+      glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,html,css,md,mdx,yaml,yml}"
+      run: npx @biomejs/biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+    typescript:
+      glob: "*.{ts,tsx}"
+      run: npm run check-types
+
+pre-push:
+  parallel: true
+  commands:
+    build:
+      run: npm run build
