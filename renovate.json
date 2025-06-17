@@ -1,0 +1,108 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"branchPrefix": "renovate/",
+	"rangeStrategy": "bump",
+	"extends": [
+		"config:recommended",
+		":pinAllExceptPeerDependencies",
+		"customManagers:biomeVersions",
+		":dependencyDashboard",
+		":semanticPrefixFixDepsChoreOthers",
+		"group:recommended",
+		"replacements:all"
+	],
+	"customManagers": [
+		{
+			"customType": "jsonata",
+			"datasourceTemplate": "npm",
+			"depNameTemplate": "@biomejs/biome",
+			"fileFormat": "json",
+			"managerFilePatterns": [
+				"/(^|/)biome.json?$/"
+			],
+			"matchStrings": [
+				"{\"currentValue\": $split($.\"$schema\",(\"/\"))[-2]}"
+			]
+		}
+	],
+	"automergeType": "pr",
+	"major": {
+		"dependencyDashboardApproval": true
+	},
+	"vulnerabilityAlerts": {
+		"enabled": true
+	},
+	"lockFileMaintenance": {
+		"enabled": true,
+		"automerge": true,
+		"schedule": [
+			"before 3am on monday"
+		]
+	},
+	"separateMultipleMajor": true,
+	"separateMinorPatch": false,
+	"configMigration": true,
+	"minor": {
+		"automerge": true
+	},
+	"patch": {
+		"automerge": true
+	},
+	"pin": {
+		"automerge": true
+	},
+	"osvVulnerabilityAlerts": true,
+	"packageRules": [
+		{
+			"matchPackageNames": [
+				"react",
+				"react-dom",
+				"@types/react",
+				"@types/react-dom"
+			],
+			"groupName": "React",
+			"groupSlug": "react",
+			"matchUpdateTypes": [
+				"major"
+			],
+			"enabled": true,
+			"dependencyDashboardApproval": true,
+			"prCreation": "not-pending",
+			"minimumReleaseAge": "3 days",
+			"prBodyNotes": [
+				"This is a major update of React. Please review the [React migration guide](https://react.dev/blog/2024/02/15/react-labs-what-we-have-been-working-on-february-2024) for breaking changes."
+			],
+			"matchFileNames": [
+				"**/package.json"
+			]
+		},
+		{
+			"matchDepTypes": [
+				"devDependencies"
+			],
+			"matchUpdateTypes": [
+				"minor"
+			],
+			"enabled": true,
+			"dependencyDashboardApproval": true,
+			"prCreation": "not-pending",
+			"minimumReleaseAge": "3 days"
+		},
+		{
+			"matchSourceUrls": [
+				"https://github.com/**"
+			],
+			"prBodyDefinitions": {
+				"OpenSSF": "[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/{{sourceRepo}}/badge)](https://securityscorecards.dev/viewer/?uri=github.com/{{sourceRepo}})"
+			},
+			"prBodyColumns": [
+				"Package",
+				"Type",
+				"Update",
+				"Change",
+				"Pending",
+				"OpenSSF"
+			]
+		}
+	]
+}

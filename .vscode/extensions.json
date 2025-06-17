@@ -1,0 +1,11 @@
+{
+	"recommendations": [
+		"ms-vscode.vscode-typescript-next",
+		"YoavBls.pretty-ts-errors",
+		"steoates.autoimport",
+		"maptz.camelcasenavigation",
+		"streetsidesoftware.code-spell-checker",
+		"biomejs.biome",
+		"vivaxy.vscode-conventional-commits"
+	]
+}
