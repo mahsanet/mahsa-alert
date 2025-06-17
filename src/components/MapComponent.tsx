@@ -10,96 +10,88 @@ interface MapComponentProps {
   onLocationHover: (location: LocationProperties | null, mouseEvent?: MouseEvent) => void;
   onMouseMove: (mouseEvent: MouseEvent) => void;
   layerVisibility: { [layerId: string]: boolean };
+  isDarkMode: boolean;
+  shouldZoomToEvac?: boolean;
+  userLocation?: { lat: number; lng: number } | null;
+  onDataSourcesLoad?: (dataSources: any) => void;
 }
 
-const parseCSVLine = (line: string): string[] => {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
+// Function to calculate bounds for GeoJSON data
+const calculateBounds = (geoJsonData: any): [[number, number], [number, number]] | null => {
+  if (!geoJsonData?.features?.length) return null;
   
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
+  let minLng = Infinity, minLat = Infinity;
+  let maxLng = -Infinity, maxLat = -Infinity;
+  
+  geoJsonData.features.forEach((feature: any) => {
+    if (feature.geometry?.coordinates) {
+      const coords = feature.geometry.coordinates;
+      
+      if (feature.geometry.type === 'Polygon') {
+        coords[0].forEach(([lng, lat]: [number, number]) => {
+          minLng = Math.min(minLng, lng);
+          maxLng = Math.max(maxLng, lng);
+          minLat = Math.min(minLat, lat);
+          maxLat = Math.max(maxLat, lat);
+        });
+      } else if (feature.geometry.type === 'Point') {
+        const [lng, lat] = coords;
+        minLng = Math.min(minLng, lng);
+        maxLng = Math.max(maxLng, lng);
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+      }
     }
-  }
+  });
   
-  result.push(current.trim());
-  return result;
+  if (minLng === Infinity) return null;
+  
+  return [[minLng, minLat], [maxLng, maxLat]];
 };
 
-const parseCSVToGeoJSON = (csvText: string, dataType: 'strikes' | 'sites') => {
-  const lines = csvText.trim().split('\n');
-  if (lines.length < 2) return { type: 'FeatureCollection' as const, features: [] };
-  
-  const headers = parseCSVLine(lines[0]).map(h => h.replace(/"/g, ''));
-  
-  const features = [];
-  
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    
-    const values = parseCSVLine(line).map(v => v.replace(/"/g, ''));
-    
-    if (values.length < headers.length - 2) continue; // Allow some flexibility
-    
-    const properties: any = {};
-    headers.forEach((header, index) => {
-      properties[header] = values[index] || '';
-    });
-    
-    let lat, lng, name, description;
-    
-    if (dataType === 'strikes') {
-      lat = parseFloat(properties.Latitude || properties.latitude || '0');
-      lng = parseFloat(properties.Longitude || properties.longitude || '0');
-      name = properties.Targeted_S || properties.City || properties.Province || 'نامشخص';
-      description = properties.SIGACT || properties.Data_Type || '';
-    } else {
-      lat = parseFloat(properties.Latitude || properties.latitude || '0');
-      lng = parseFloat(properties.Longitude || properties.longitude || '0');
-      name = properties.Site || properties.name || properties.CityBody || 'نامشخص';
-      description = properties.Branch_Art || properties.Map_Icon || '';
-    }
-    
-    if (lat && lng && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-      features.push({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Point' as const,
-          coordinates: [lng, lat]
-        },
-        properties: {
-          ...properties,
-          name,
-          description,
-          dataType
-        }
-      });
-    }
-  }
-  
-  return {
-    type: 'FeatureCollection' as const,
-    features
-  };
-};
-
-const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMove, layerVisibility }) => {
+const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMove, layerVisibility, isDarkMode, shouldZoomToEvac, userLocation, onDataSourcesLoad }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
   
   const onLocationHoverRef = useRef(onLocationHover);
   const onMouseMoveRef = useRef(onMouseMove);
+
+  // Store the data sources for re-adding after theme switch
+  const dataSourcesRef = useRef<{
+    strikes?: any;
+    sites?: any;
+    nuclear?: any;
+    iranBorder?: any;
+    evac?: any;
+  }>({});
+
+  const retryMapLoad = () => {
+    setIsRetrying(true);
+    setError(null);
+    setIsLoading(true);
+    setRetryCount(prev => prev + 1);
+    
+    // Clean up existing map completely
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
+    
+    // Clear data sources
+    dataSourcesRef.current = {};
+    
+    // Reset states
+    setIsMapLoaded(false);
+    
+    setTimeout(() => {
+      setIsRetrying(false);
+    }, 2000);
+  };
 
   useEffect(() => {
     onLocationHoverRef.current = onLocationHover;
@@ -110,7 +102,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
     if (!map.current) return;
 
     Object.entries(layerVisibility).forEach(([layerId, visible]) => {
-      const layerIds = [`${layerId}-circle`, `${layerId}-label`];
+      let layerIds: string[] = [];
+      
+      if (layerId === 'evac') {
+        layerIds = [`${layerId}-fill`, `${layerId}-line`];
+      } else {
+        layerIds = [`${layerId}-layer`, `${layerId}-label`];
+      }
       
       layerIds.forEach(id => {
         if (map.current?.getLayer(id)) {
@@ -124,9 +122,103 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
     });
   }, [layerVisibility]);
 
+  // Zoom to evacuation area when shouldZoomToEvac is true
+  useEffect(() => {
+    if (!map.current || !shouldZoomToEvac || !dataSourcesRef.current.evac) return;
+
+    const bounds = calculateBounds(dataSourcesRef.current.evac);
+    if (bounds) {
+      map.current.fitBounds(bounds, {
+        padding: 10,
+        duration: 1000,
+        maxZoom: 13
+      });
+    }
+  }, [shouldZoomToEvac]);
+
+  // Update user location marker
+  useEffect(() => {
+    if (!map.current || !userLocation) return;
+
+    const userLocationGeoJSON = {
+      type: 'FeatureCollection' as const,
+      features: [
+        {
+          type: 'Feature' as const,
+          properties: {
+            name: 'موقعیت من',
+            accuracy: 'بالا'
+          },
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [userLocation.lng, userLocation.lat]
+          }
+        }
+      ]
+    };
+
+    // Add or update user location source
+    if (map.current.getSource('user-location')) {
+      (map.current.getSource('user-location') as any).setData(userLocationGeoJSON);
+    } else {
+      map.current.addSource('user-location', {
+        type: 'geojson',
+        data: userLocationGeoJSON
+      });
+
+      // Add user location circle
+      map.current.addLayer({
+        id: 'user-location-circle',
+        type: 'circle',
+        source: 'user-location',
+        paint: {
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            3, 8,
+            10, 16
+          ],
+          'circle-color': '#4285f4',
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#ffffff',
+          'circle-opacity': 0.8,
+        }
+      });
+
+      // Add user location accuracy circle
+      map.current.addLayer({
+        id: 'user-location-accuracy',
+        type: 'circle',
+        source: 'user-location',
+        paint: {
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            3, 20,
+            10, 40
+          ],
+          'circle-color': '#4285f4',
+          'circle-opacity': 0.1,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#4285f4',
+          'circle-stroke-opacity': 0.3
+        }
+      });
+    }
+
+    // Fly to user location
+    map.current.flyTo({
+      center: [userLocation.lng, userLocation.lat],
+      zoom: 15,
+      duration: 2000
+    });
+  }, [userLocation]);
+
+  // Initialize map
   useEffect(() => {
     if (map.current) return;
-
     if (!mapContainer.current) return;
 
     try {
@@ -139,7 +231,23 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
             'carto-dark': {
               type: 'raster',
               tiles: [
-                'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
+                'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-c.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+              ],
+              tileSize: 256,
+              attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+            },
+            'carto-light': {
+              type: 'raster',
+              tiles: [
+                'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-c.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+                'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
               ],
               tileSize: 256,
               attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
@@ -150,13 +258,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
               id: 'background',
               type: 'background',
               paint: {
-                'background-color': '#242f3e'
+                'background-color': isDarkMode ? '#242f3e' : '#f8f9fa'
               }
             },
             {
-              id: 'carto-dark-layer',
+              id: 'carto-layer',
               type: 'raster',
-              source: 'carto-dark',
+              source: isDarkMode ? 'carto-dark' : 'carto-light',
               minzoom: 0,
               maxzoom: 20
             }
@@ -168,58 +276,148 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
         bearing: 0,
       });
 
-      map.current.on('load', async () => {
-        if (!map.current) return;
+      map.current.on('load', () => {
+        setIsMapLoaded(true);
+        setIsLoading(false);
+      });
 
-        try {
+      map.current.on('error', (e) => {
+        console.error('Map error:', e);
+        
+        // Check if it's a tile loading error (usually temporary)
+        if (e.error?.message?.includes('Failed to fetch') || e.error?.message?.includes('AJAXError')) {
+          console.warn('Tile loading error, retrying...', e.error?.message);
           
-          let strikesResponse, sitesResponse, iranBorderResponse;
-          
+          // For tile errors, retry more aggressively but silently
+          if (retryCount < 5) {
+            const delay = Math.min(500 * Math.pow(1.5, retryCount), 3000);
+            setTimeout(() => {
+              retryMapLoad();
+            }, delay);
+            return;
+          }
+        }
+        
+        setError('خطا در بارگذاری نقشه: ' + (e.error?.message || 'خطای نامشخص'));
+        setIsLoading(false);
+        
+        // Auto retry up to 3 times for other errors
+        if (retryCount < 3) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // exponential backoff, max 5s
+          setTimeout(() => {
+            retryMapLoad();
+          }, delay);
+        }
+      });
+
+              map.current.once('load', async () => {
+          if (!map.current || !map.current.isStyleLoaded()) return;
+
           try {
-            [strikesResponse, sitesResponse, iranBorderResponse] = await Promise.all([
-              fetch('https://dataviz.nbcnews.com/projects/20250613-iran-strikes-locations/data/strikes-confirmed-latest.csv'),
-              fetch('https://dataviz.nbcnews.com/projects/20250613-iran-strikes-locations/data/iran-military-and-civilian-sites.csv'),
-              fetch('/iran-border.geojson')
+            async function loadPngAsImage(url: string) {
+              const response = await fetch(url);
+              const blob = await response.blob();
+              const imageBitmap = await createImageBitmap(blob);
+              return imageBitmap;
+            }
+
+            // Add images only if they don't exist
+            if (!map.current.hasImage('nuclear-icon')) {
+              map.current.addImage('nuclear-icon', await loadPngAsImage('/assets/symbols/nuclear.png'));
+            }
+            if (!map.current.hasImage('missile-base-icon')) {
+              map.current.addImage('missile-base-icon', await loadPngAsImage('/assets/symbols/missile.png'));
+            }
+            if (!map.current.hasImage('explosion-icon')) {
+              map.current.addImage('explosion-icon', await loadPngAsImage('/assets/symbols/explosion.png'));
+            }
+
+          // Load data sources
+          let strikesResponse, sitesResponse, iranBorderResponse, nuclearFacilitiesResponse, evacResponse;
+
+          try {
+            [strikesResponse, sitesResponse, iranBorderResponse, nuclearFacilitiesResponse, evacResponse] = await Promise.all([
+              fetch('/sources/strikes.geojson'),
+              fetch('/sources/missile-bases.geojson'),
+              fetch('/sources/iran-border.geojson'),
+              fetch('/sources/nuclear-facilities.geojson'),
+              fetch('/sources/evac-area-jun-16.geojson')
             ]);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
           } catch (error) {
-            [strikesResponse, sitesResponse, iranBorderResponse] = await Promise.all([
-              fetch('/strikes-confirmed-latest.csv'),
-              fetch('/iran-military-and-civilian-sites.csv'),
-              fetch('/iran-border.geojson')
+            [strikesResponse, sitesResponse, iranBorderResponse, nuclearFacilitiesResponse, evacResponse] = await Promise.all([
+              fetch('/sources/strikes.geojson'),
+              fetch('/sources/missile-bases.geojson'),
+              fetch('/sources/iran-border.geojson'),
+              fetch('/sources/nuclear-facilities.geojson'),
+              fetch('/sources/evac-area-jun-16.geojson')
             ]);
           }
 
-          if (!strikesResponse.ok || !sitesResponse.ok || !iranBorderResponse.ok) {
-            throw new Error('Failed to load data');
-          }
-
-          const [strikesCSV, sitesCSV, iranBorderData] = await Promise.all([
-            strikesResponse.text(),
-            sitesResponse.text(),
-            iranBorderResponse.json()
+          const [strikesGeoJSON, sitesGeoJSON, iranBorderData, nuclearFacilitiesGeoJSON, evacDataGeoJSON] = await Promise.all([
+            strikesResponse.json(),
+            sitesResponse.json(),
+            iranBorderResponse.json(),
+            nuclearFacilitiesResponse.json(),
+            evacResponse.json()
           ]);
 
-          const strikesGeoJSON = parseCSVToGeoJSON(strikesCSV, 'strikes');
-          const sitesGeoJSON = parseCSVToGeoJSON(sitesCSV, 'sites');
-
-
+          // Store the data sources for later use
+          dataSourcesRef.current = {
+            strikes: strikesGeoJSON,
+            sites: sitesGeoJSON,
+            iranBorder: iranBorderData,
+            nuclear: nuclearFacilitiesGeoJSON,
+            evac: evacDataGeoJSON
+          };
           
+          // Notify parent component about data sources
+          if (onDataSourcesLoad) {
+            onDataSourcesLoad({
+              strikes: strikesGeoJSON,
+              sites: sitesGeoJSON,
+              nuclear: nuclearFacilitiesGeoJSON
+            });
+          }
+          
+          // Add sources only if they don't exist
+          if (!map.current.getSource('strikes')) {
           map.current.addSource('strikes', {
             type: 'geojson',
             data: strikesGeoJSON,
           });
+          }
 
+          if (!map.current.getSource('nuclear-source')) {
+            map.current.addSource('nuclear-source', {
+              type: 'geojson',
+              data: nuclearFacilitiesGeoJSON,
+            });
+          }
+
+          if (!map.current.getSource('sites')) {
           map.current.addSource('sites', {
             type: 'geojson',
             data: sitesGeoJSON,
           });
+          }
 
-
+          if (!map.current.getSource('iran-border')) {
           map.current.addSource('iran-border', {
             type: 'geojson',
             data: iranBorderData,
           });
+          }
 
+          if (!map.current.getSource('evac')) {
+            map.current.addSource('evac', {
+              type: 'geojson',
+              data: evacDataGeoJSON,
+            });
+          }
+
+          // Add layers only if they don't exist
+          if (!map.current.getLayer('iran-border-fill')) {
           map.current.addLayer({
             id: 'iran-border-fill',
             type: 'fill',
@@ -229,7 +427,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
               'fill-opacity': 0.2,
             },
           });
+          }
 
+          if (!map.current.getLayer('iran-border-line')) {
           map.current.addLayer({
             id: 'iran-border-line',
             type: 'line',
@@ -240,51 +440,84 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
               'line-opacity': 0.8,
             },
           });
+          }
 
+          if (!map.current.getLayer('nuclear-layer')) {
+            map.current.addLayer({
+              id: 'nuclear-layer',
+              type: 'symbol',
+              source: 'nuclear-source',
+              layout: {
+                'icon-image': 'nuclear-icon',
+                'icon-size': 0.4,
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true
+              }
+            });
+          }
+
+          if (!map.current.getLayer('strikes-layer')) {
           map.current.addLayer({
-            id: 'strikes-circle',
-            type: 'circle',
+              id: 'strikes-layer',
+              type: 'symbol',
             source: 'strikes',
+              layout: {
+                'icon-image': 'explosion-icon',
+                'icon-size': 0.4,
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true
+              }
+            });
+          }
+
+          if (!map.current.getLayer('sites-layer')) {
+            map.current.addLayer({
+              id: 'sites-layer',
+              type: 'symbol',
+              source: 'sites',
+              layout: {
+                'icon-image': 'missile-base-icon',
+                'icon-size': 0.4,
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true
+              }
+            });
+          }
+
+          if (!map.current.getLayer('evac-fill')) {
+            map.current.addLayer({
+              id: 'evac-fill',
+              type: 'fill',
+              source: 'evac',
             paint: {
-              'circle-radius': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                3, 8,
-                10, 16
-              ],
-              'circle-color': '#b81102', 
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#FFFFFF',
-              'circle-opacity': 0.8,
+                'fill-color': '#ff0000',
+                'fill-opacity': 0.2,
             },
           });
+          }
 
+          if (!map.current.getLayer('evac-line')) {
           map.current.addLayer({
-            id: 'sites-circle',
-            type: 'circle',
-            source: 'sites',
+              id: 'evac-line',
+              type: 'line',
+              source: 'evac',
             paint: {
-              'circle-radius': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                3, 6,
-                10, 12
-              ],
-              'circle-color': '#FF6B35', 
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#FFFFFF',
-              'circle-opacity': 0.8,
+                'line-color': '#ff0000',
+                'line-width': 2,
+                'line-opacity': 0.8,
+                'line-dasharray': [4, 2],
             },
           });
+          }
 
+          // Add text layers only if they don't exist
+          if (!map.current.getLayer('strikes-label')) {
           map.current.addLayer({
             id: 'strikes-label',
             type: 'symbol',
             source: 'strikes',
             layout: {
-              'text-field': ['get', 'name'],
+                'text-field': ['get', 'SiteTargeted'],
               'text-offset': [0, 1.5],
               'text-anchor': 'top',
               'text-size': [
@@ -298,18 +531,47 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
               'text-writing-mode': ['horizontal'],
             },
             paint: {
-              'text-color': '#FF6B35',
-              'text-halo-color': '#000000',
+                'text-color': '#ff9100',
+                'text-halo-color': isDarkMode ? '#000000' : '#333333',
               'text-halo-width': 2,
-            },
-          });
+              }
+            });
+          }
 
+          if (!map.current.getLayer('nuclear-label')) {
+            map.current.addLayer({
+              id: 'nuclear-label',
+              type: 'symbol',
+              source: 'nuclear-source',
+              layout: {
+                'text-field': ['get', 'Site'],
+                'text-offset': [0, 1.5],
+                'text-anchor': 'top',
+                'text-size': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  2, 11,
+                  10, 16
+                ],
+                'text-allow-overlap': false,
+                'text-writing-mode': ['horizontal'],
+              },
+              paint: {
+                'text-color': '#ff9100',
+                'text-halo-color': isDarkMode ? '#000000' : '#333333',
+                'text-halo-width': 2,
+              }
+            });
+          }
+
+          if (!map.current.getLayer('sites-label')) {
           map.current.addLayer({
             id: 'sites-label',
             type: 'symbol',
             source: 'sites',
             layout: {
-              'text-field': ['get', 'name'],
+                'text-field': ['get', 'BASES_CLUSTER'],
               'text-offset': [0, 1.5],
               'text-anchor': 'top',
               'text-size': [
@@ -324,15 +586,17 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
             },
             paint: {
               'text-color': '#FFFFFF',
-              'text-halo-color': '#000000',
+                'text-halo-color': isDarkMode ? '#000000' : '#333333',
               'text-halo-width': 2,
-            },
+              }
           });
-
+          }
 
           const isMobile = () => window.innerWidth < 768;
 
-          ['strikes-circle', 'sites-circle'].forEach(layerId => {
+          ['strikes-layer', 'sites-layer', 'nuclear-layer'].forEach(layerId => {
+            if (!map.current?.getLayer(layerId)) return;
+
             // Desktop events (hover)
             map.current!.on('mouseenter', layerId, (e) => {
               if (!map.current || isMobile()) return;
@@ -341,7 +605,16 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
               
               if (e.features && e.features[0]) {
                 const properties = e.features[0].properties as LocationProperties;
-                onLocationHoverRef.current(properties, e.originalEvent as MouseEvent);
+                const coordinates = (e.features[0].geometry as any).coordinates;
+                
+                // Add coordinates to properties for tooltip
+                const enrichedProperties = {
+                  ...properties,
+                  geometry: e.features[0].geometry,
+                  coordinates: coordinates
+                };
+                
+                onLocationHoverRef.current(enrichedProperties, e.originalEvent as MouseEvent);
               }
             });
 
@@ -350,11 +623,20 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
               onMouseMoveRef.current(e.originalEvent as MouseEvent);
             });
 
-            map.current!.on('mouseleave', layerId, () => {
+            map.current!.on('mouseleave', layerId, (e) => {
               if (!map.current || isMobile()) return;
               
-              map.current.getCanvas().style.cursor = '';
+              // Check if mouse is moving to tooltip
+              const rect = map.current.getContainer().getBoundingClientRect();
+              
+              // Small delay to allow moving to tooltip
+              setTimeout(() => {
+                const tooltipElement = document.querySelector('[data-tooltip]');
+                if (!tooltipElement || !tooltipElement.matches(':hover')) {
+                  map.current!.getCanvas().style.cursor = '';
               onLocationHoverRef.current(null);
+                }
+              }, 2000);
             });
 
             // Mobile and Desktop click events
@@ -365,25 +647,29 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
               const coordinates = (e.features[0].geometry as any).coordinates.slice();
               
               if (isMobile()) {
-                onLocationHoverRef.current(properties, e.originalEvent as MouseEvent);
+                // Add coordinates to properties for tooltip
+                const enrichedProperties = {
+                  ...properties,
+                  geometry: e.features[0].geometry,
+                  coordinates: coordinates
+                };
                 
-                setTimeout(() => {
-                  onLocationHoverRef.current(null);
-                }, 3000);
-              } else {
+                onLocationHoverRef.current(enrichedProperties, e.originalEvent as MouseEvent);
+              }
+              
                 map.current!.flyTo({
                   center: coordinates,
-                  zoom: 8,
-                  duration: 2000,
+                zoom: 10,
+                duration: 1000,
                 });
-              }
             });
           });
 
+          // Mobile click-to-close tooltip
           if (isMobile()) {
             map.current.on('click', (e) => {
               const features = map.current!.queryRenderedFeatures(e.point, {
-                layers: ['strikes-circle', 'sites-circle']
+                layers: ['strikes-layer', 'sites-layer', 'nuclear-layer']
               });
               
               if (features.length === 0) {
@@ -392,26 +678,36 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
             });
           }
 
-          setIsLoading(false);
         } catch (err) {
           console.error('❌ Error loading map data:', err);
-          setError(`Loading error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          setError('خطا در بارگذاری داده‌های نقشه: ' + (err instanceof Error ? err.message : 'خطای نامشخص'));
           setIsLoading(false);
+          
+          // Auto retry data loading up to 2 times
+          if (retryCount < 2) {
+            setTimeout(() => {
+              retryMapLoad();
+            }, 2000);
+          }
         }
       });
 
-      map.current.on('error', (e) => {
-        console.error('Map error:', e);
-        setError('Failed to load map.');
-        setIsLoading(false);
-      });
-
-    } catch (err) {
-      console.error('Error initializing map:', err);
-      setError('Failed to initialize map');
+    } catch (error) {
+      console.error('Error initializing map:', error);
+      setError('خطا در راه‌اندازی نقشه: ' + (error instanceof Error ? error.message : 'خطای نامشخص'));
       setIsLoading(false);
+      
+      // Auto retry initialization up to 2 times
+      if (retryCount < 2) {
+        setTimeout(() => {
+          retryMapLoad();
+        }, 2000);
+      }
     }
+  }, [isDarkMode, retryCount]);
 
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
       if (map.current) {
         map.current.remove();
@@ -420,12 +716,464 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
     };
   }, []);
 
+  // Update map style when theme changes
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    try {
+      // Store current data sources before removing them
+      const dataSources = dataSourcesRef.current;
+
+      // Remove all existing layers and sources
+      const layers = [
+          'iran-border-fill',  'iran-border-line',
+          'strikes-layer', 'strikes-label',
+          'nuclear-layer', 'nuclear-label',
+          'sites-layer', 'sites-label',
+          'evac-fill', 'evac-line',
+          'user-location-circle', 'user-location-accuracy',
+          'carto-layer'
+      ];
+      const sources = ['iran-border', 'strikes', 'sites', 'nuclear-source', 'evac', 'user-location', 'carto-layer'];
+
+      layers.forEach(layer => {
+        if (map.current?.getLayer(layer)) {
+          map.current.removeLayer(layer);
+        }
+      });
+
+      sources.forEach(source => {
+        if (map.current?.getSource(source)) {
+          map.current.removeSource(source);
+        }
+      });
+
+      // Update background color
+      map.current.setPaintProperty('background', 'background-color', isDarkMode ? '#242f3e' : '#f8f9fa');
+
+      // Add new base layer with fallback servers
+      map.current.addSource('carto-layer', {
+        type: 'raster',
+        tiles: isDarkMode 
+          ? [
+              'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+              'https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+              'https://cartodb-basemaps-c.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+              'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+              'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+            ]
+          : [
+              'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+              'https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+              'https://cartodb-basemaps-c.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+              'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+              'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
+            ],
+        tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      });
+
+      map.current.addLayer({
+        id: 'carto-layer',
+        type: 'raster',
+        source: 'carto-layer',
+        minzoom: 0,
+        maxzoom: 20
+      });
+
+      // First add all circle layers
+      if (dataSources.iranBorder) {
+        map.current.addSource('iran-border', {
+          type: 'geojson',
+          data: dataSources.iranBorder
+        });
+
+        map.current.addLayer({
+          id: 'iran-border-fill',
+          type: 'fill',
+          source: 'iran-border',
+          paint: {
+            'fill-color': 'rgba(255, 0, 0, 0.1)',
+            'fill-opacity': 0.2,
+          },
+        });
+
+        map.current.addLayer({
+          id: 'iran-border-line',
+          type: 'line',
+          source: 'iran-border',
+          paint: {
+            'line-color': '#FF0000',
+            'line-width': 3,
+            'line-opacity': 0.8,
+          },
+        });
+      }
+
+      if (dataSources.strikes) {
+        map.current.addSource('strikes', {
+          type: 'geojson',
+          data: dataSources.strikes
+        });
+
+        map.current.addLayer({
+          id: 'strikes-layer',
+          type: 'symbol',
+          source: 'strikes',
+          layout: {
+            'icon-image': 'explosion-icon',
+            'icon-size': 0.4,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
+          }
+        });
+      }
+
+      if (dataSources.sites) {
+        map.current.addSource('sites', {
+          type: 'geojson',
+          data: dataSources.sites
+        });
+
+        map.current.addLayer({
+          id: 'sites-layer',
+          type: 'symbol',
+          source: 'sites',
+          layout: {
+            'icon-image': 'missile-base-icon',
+            'icon-size': 0.4,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
+          }
+        });
+      }
+
+      if (dataSources.sites) {
+        map.current.addSource('nuclear-source', {
+          type: 'geojson',
+          data: dataSources.sites
+        });
+
+        map.current.addLayer({
+          id: 'nuclear-layer',
+          type: 'symbol',
+          source: 'nuclear-source',
+          layout: {
+            'icon-image': 'nuclear-icon',
+            'icon-size': 0.4,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
+          }
+        });
+      }
+
+      if (dataSources.evac) {
+        map.current.addSource('evac', {
+          type: 'geojson',
+          data: dataSources.evac
+        });
+
+        map.current.addLayer({
+          id: 'evac-fill',
+          type: 'fill',
+          source: 'evac',
+          paint: {
+            'fill-color': '#ff0000',
+            'fill-opacity': 0.2,
+          },
+        });
+
+        map.current.addLayer({
+          id: 'evac-line',
+          type: 'line',
+          source: 'evac',
+          paint: {
+            'line-color': '#ff0000',
+            'line-width': 2,
+            'line-opacity': 0.8,
+            'line-dasharray': [4, 2],
+          },
+        });
+      }
+
+      // Then add all text layers
+      if (dataSources.strikes) {
+        map.current.addLayer({
+          id: 'strikes-label',
+          type: 'symbol',
+          source: 'strikes',
+          layout: {
+            'text-field': ['get', 'BASES_CLUSTER'],
+            'text-offset': [0, 1.5],
+            'text-anchor': 'top',
+            'text-size': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              2, 11,
+              10, 16
+            ],
+            'text-allow-overlap': false,
+            'text-writing-mode': ['horizontal'],
+          },
+          paint: {
+            'text-color': '#ff9100',
+            'text-halo-color': isDarkMode ? '#d1d1d1' : '#333333',
+            'text-halo-width': 2,
+          }
+        });
+      }
+
+      if (dataSources.sites) {
+        map.current.addLayer({
+          id: 'sites-label',
+          type: 'symbol',
+          source: 'sites',
+          layout: {
+            'text-field': ['get', 'SiteTargeted'],
+            'text-offset': [0, 1.5],
+            'text-anchor': 'top',
+            'text-size': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              2, 12,
+              10, 18
+            ],
+            'text-allow-overlap': false,
+            'text-writing-mode': ['horizontal'],
+          },
+          paint: {
+            'text-color': '#FFFFFF',
+            'text-halo-color': isDarkMode ? '#d1d1d1' : '#333333',
+            'text-halo-width': 2,
+          }
+        });
+      }
+
+      if (dataSources.nuclear) {
+        map.current.addLayer({
+          id: 'nuclear-label',
+          type: 'symbol',
+          source: 'nuclear-source',
+          layout: {
+            'text-field': ['get', 'Site'],
+            'text-offset': [0, 1.5],
+            'text-anchor': 'top',
+            'text-size': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              2, 12,
+              10, 18
+            ],
+            'text-allow-overlap': false,
+            'text-writing-mode': ['horizontal'],
+          },
+          paint: {
+            'text-color': '#FFFFFF',
+            'text-halo-color': isDarkMode ? '#d1d1d1' : '#333333',
+            'text-halo-width': 2,
+          }
+        });
+      }
+
+      // Re-add user location if it exists
+      if (userLocation) {
+        const userLocationGeoJSON = {
+          type: 'FeatureCollection' as const,
+          features: [
+            {
+              type: 'Feature' as const,
+              properties: {
+                name: 'موقعیت من',
+                accuracy: 'بالا'
+              },
+              geometry: {
+                type: 'Point' as const,
+                coordinates: [userLocation.lng, userLocation.lat]
+              }
+            }
+          ]
+        };
+
+        map.current.addSource('user-location', {
+          type: 'geojson',
+          data: userLocationGeoJSON
+        });
+
+        map.current.addLayer({
+          id: 'user-location-circle',
+          type: 'circle',
+          source: 'user-location',
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              3, 8,
+              10, 16
+            ],
+            'circle-color': '#4285f4',
+            'circle-stroke-width': 3,
+            'circle-stroke-color': '#ffffff',
+            'circle-opacity': 0.8,
+          }
+        });
+
+        map.current.addLayer({
+          id: 'user-location-accuracy',
+          type: 'circle',
+          source: 'user-location',
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              3, 20,
+              10, 40
+            ],
+            'circle-color': '#4285f4',
+            'circle-opacity': 0.1,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#4285f4',
+            'circle-stroke-opacity': 0.3
+          }
+        });
+      }
+
+      // Re-add event listeners after theme change
+      const isMobile = () => window.innerWidth < 768;
+
+      ['strikes-circle', 'sites-circle'].forEach(layerId => {
+        if (!map.current?.getLayer(layerId)) return;
+
+        // Desktop events (hover)
+        map.current!.on('mouseenter', layerId, (e) => {
+          if (!map.current || isMobile()) return;
+          
+          map.current.getCanvas().style.cursor = 'pointer';
+          
+          if (e.features && e.features[0]) {
+            const properties = e.features[0].properties as LocationProperties;
+            const coordinates = (e.features[0].geometry as any).coordinates;
+            
+            // Add coordinates to properties for tooltip
+            const enrichedProperties = {
+              ...properties,
+              geometry: e.features[0].geometry,
+              coordinates: coordinates
+            };
+            
+            onLocationHoverRef.current(enrichedProperties, e.originalEvent as MouseEvent);
+          }
+        });
+
+        map.current!.on('mousemove', layerId, (e) => {
+          if (!map.current || isMobile()) return;
+          onMouseMoveRef.current(e.originalEvent as MouseEvent);
+        });
+
+        map.current!.on('mouseleave', layerId, (e) => {
+          if (!map.current || isMobile()) return;
+          
+          // Check if mouse is moving to tooltip
+          setTimeout(() => {
+            const tooltipElement = document.querySelector('[data-tooltip]');
+            if (!tooltipElement || !tooltipElement.matches(':hover')) {
+              map.current!.getCanvas().style.cursor = '';
+              onLocationHoverRef.current(null);
+            }
+          }, 2000);
+        });
+
+        // Mobile and Desktop click events
+        map.current!.on('click', layerId, (e) => {
+          if (!map.current || !e.features || !e.features[0]) return;
+          
+          const properties = e.features[0].properties as LocationProperties;
+          const coordinates = (e.features[0].geometry as any).coordinates.slice();
+          
+          if (isMobile()) {
+            // Add coordinates to properties for tooltip
+            const enrichedProperties = {
+              ...properties,
+              geometry: e.features[0].geometry,
+              coordinates: coordinates
+            };
+            
+            onLocationHoverRef.current(enrichedProperties, e.originalEvent as MouseEvent);
+          }
+          
+          map.current!.flyTo({
+            center: coordinates,
+            zoom: 8,
+            duration: 2000,
+          });
+        });
+      });
+
+    } catch (error) {
+      console.error('Error updating map style:', error);
+    }
+  }, [isDarkMode, isMapLoaded, userLocation]);
+
   if (error) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white">
-        <div className="text-center p-8">
-          <h3 className="text-xl font-semibold mb-2">Error Loading Map</h3>
-          <p className="text-gray-400 mb-4">{error}</p>
+      <div className={`w-full h-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'} transition-colors`}>
+        <div className="text-center p-8 max-w-md">
+          <div className="mb-6">
+            <div className={`text-6xl mb-4 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>⚠️</div>
+            <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              خطا در بارگذاری نقشه
+            </h3>
+            <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mb-6 text-sm leading-relaxed`}>
+              {error}
+            </p>
+            {retryCount > 0 && (
+              <p className={`${isDarkMode ? 'text-gray-500' : 'text-gray-500'} text-xs mb-4`}>
+                تلاش {retryCount} از 3
+              </p>
+            )}
+          </div>
+          
+          <div className="space-y-3">
+            <button
+              onClick={retryMapLoad}
+              disabled={isRetrying}
+              className={`
+                w-full px-6 py-3 rounded-lg font-medium transition-all duration-200
+                ${isRetrying 
+                  ? 'bg-gray-500 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                } 
+                text-white shadow-lg hover:shadow-xl
+                disabled:opacity-50
+              `}
+            >
+              {isRetrying ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  در حال تلاش مجدد...
+                </div>
+              ) : (
+                'تلاش مجدد'
+              )}
+            </button>
+            
+            <button
+              onClick={() => window.location.reload()}
+              className={`
+                w-full px-6 py-2 rounded-lg font-medium transition-all duration-200
+                ${isDarkMode 
+                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                }
+              `}
+            >
+              بارگذاری مجدد صفحه
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -435,10 +1183,15 @@ const MapComponent: React.FC<MapComponentProps> = ({ onLocationHover, onMouseMov
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="w-full h-full" />
       {isLoading && (
-        <div className="absolute inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center">
-          <div className="text-white text-center">
+        <div className={`absolute inset-0 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'} bg-opacity-75 flex items-center justify-center transition-colors`}>
+          <div className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-center`}>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
-            <p>Loading map...</p>
+            <p className="mb-2">در حال بارگذاری نقشه...</p>
+            {retryCount > 0 && (
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                تلاش {retryCount} از 3
+              </p>
+            )}
           </div>
         </div>
       )}

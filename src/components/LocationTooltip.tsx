@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 
 interface LocationProperties {
   [key: string]: any;
@@ -13,35 +13,122 @@ interface TooltipState {
 
 interface LocationTooltipProps {
   tooltipState: TooltipState | null;
+  onClose?: () => void;
 }
 
-const getCategoryColor = (dataType: string): string => {
-  if (dataType === 'strikes') return 'bg-red-700';
-  return 'bg-orange-500';
+const formatValue = (value: any): string => {
+  if (value === null || value === undefined || value === '') {
+    return 'نامشخص';
+  }
+  
+  if (typeof value === 'number') {
+    if (value > 1000000000) {
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('fa-IR');
+      }
+    }
+    return value.toLocaleString('fa-IR');
+  }
+  
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+      try {
+        const date = new Date(value);
+        return date.toLocaleDateString('fa-IR');
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  }
+  
+  if (typeof value === 'boolean') {
+    return value ? 'بله' : 'خیر';
+  }
+  
+  return String(value);
 };
 
-const getImportantProperties = (location: LocationProperties) => {
-  const dataType = location.dataType;
-  const importantData: { [key: string]: any } = {};
+const translateFieldName = (key: string): string => {
+  const translations: Record<string, string> = {
+    'Date': 'تاریخ',
+    'SiteTargeted': 'مکان',
+    'Status': 'وضعیت',
+    'LOCATION_of_SITE': 'موقعیت پایگاه',
+    'BASES_CLUSTER': 'دسته پایگاه‌ها',
+    'OBJECTID': 'شناسه',
+    'Field': 'فیلد',
+    'Shape__Area': 'مساحت',
+    'Shape__Length': 'طول',
+    'dataType': 'نوع داده',
+    'name': 'نام',
+    'description': 'توضیحات',
+    'coordinates': 'مختصات',
+    'type': 'نوع',
+    'geometry': 'هندسه',
+    'Site': 'سایت'
+  };
+  
+  return translations[key] || key;
+};
 
-  if (dataType === 'strikes') {
-    if (location.Date) importantData['تاریخ'] = location.Date;
-    if (location.Data_Type) importantData['نوع حمله'] = location.Data_Type;
-    if (location.City) importantData['شهر'] = location.City;
-    if (location.Province) importantData['استان'] = location.Province;
-    if (location.Confidence) importantData['سطح اطمینان'] = location.Confidence;
-    if (location.Actor) importantData['عامل'] = location.Actor;
-  } else {
-    if (location.Map_Icon) importantData['نوع سایت'] = location.Map_Icon;
-    if (location.Branch_Art) importantData['شاخه نظامی'] = location.Branch_Art;
-    if (location.CityBody) importantData['شهر'] = location.CityBody;
-    if (location.Provincial) importantData['استان'] = location.Provincial;
+const shouldSkipField = (key: string, value: any): boolean => {
+  const skipFields = ['geometry', 'coordinates', 'type'];
+  
+  if (skipFields.includes(key.toLowerCase())) return true;
+  if (value === null || value === undefined || value === '') return true;
+  if (typeof value === 'object' && !Array.isArray(value)) return true;
+  
+  return false;
+};
+
+const getDisplayName = (properties: LocationProperties): string => {
+  const nameFields = ['SiteTargeted', 'LOCATION_of_SITE', 'name', 'Name', 'title', 'Title', "Site"];
+  
+  for (const field of nameFields) {
+    if (properties[field] && typeof properties[field] === 'string') {
+      return properties[field];
+    }
+  }
+  
+  return 'نامشخص';
+};
+
+const getLocationCategory = (properties: LocationProperties): { label: string; color: string } => {
+  if (properties.SiteTargeted || properties.Status) {
+    return { label: 'حملات تایید شده', color: 'bg-orange-500' };
+
+  }
+  
+  if (properties.LOCATION_of_SITE || properties.BASES_CLUSTER) {
+    return { label: 'پایگاه‌های موشکی', color: 'bg-red-700' };
+  }
+  
+  if (properties.Shape__Area || properties.Field !== undefined) {
+    return { label: 'مناطق تخلیه', color: 'bg-red-600' };
   }
 
-  return importantData;
+  if (properties.Site || properties.Field !== undefined) {
+    return { label: 'مرکز هسته‌ای', color: 'bg-red-600' };
+  }
+  
+  return { label: 'موقعیت', color: 'bg-blue-600' };
 };
 
-const LocationTooltip: React.FC<LocationTooltipProps> = ({ tooltipState }) => {
+const getFilteredProperties = (properties: LocationProperties): Record<string, any> => {
+  const filtered: Record<string, any> = {};
+  
+  Object.entries(properties).forEach(([key, value]) => {
+    if (!shouldSkipField(key, value)) {
+      filtered[key] = value;
+    }
+  });
+  
+  return filtered;
+};
+
+const LocationTooltip: React.FC<LocationTooltipProps> = ({ tooltipState, onClose }) => {
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -63,8 +150,15 @@ const LocationTooltip: React.FC<LocationTooltipProps> = ({ tooltipState }) => {
 
   const isMobile = windowSize.width < 768;
   const tooltipWidth = isMobile ? Math.min(280, windowSize.width - 32) : 320;
-  const importantProps = getImportantProperties(location);
-  const tooltipHeight = Math.min(isMobile ? 400 : 500, Object.keys(importantProps).length * 50 + 250);
+  
+  const displayName = getDisplayName(location);
+  const category = getLocationCategory(location);
+  const filteredProps = getFilteredProperties(location);
+  
+  const tooltipHeight = Math.min(
+    isMobile ? 400 : 500, 
+    Object.keys(filteredProps).length * 40 + 200
+  );
   const padding = isMobile ? 16 : 24;
 
   let adjustedX = x + 15;
@@ -74,7 +168,6 @@ const LocationTooltip: React.FC<LocationTooltipProps> = ({ tooltipState }) => {
     adjustedX = (windowSize.width - tooltipWidth) / 2;
     adjustedY = Math.max(padding, Math.min(y - tooltipHeight / 2, windowSize.height - tooltipHeight - padding));
   } else {
-    // Desktop positioning
     if (adjustedX + tooltipWidth > windowSize.width - padding) {
       adjustedX = x - tooltipWidth - 15;
     }
@@ -89,14 +182,34 @@ const LocationTooltip: React.FC<LocationTooltipProps> = ({ tooltipState }) => {
   adjustedX = Math.max(padding, Math.min(adjustedX, windowSize.width - tooltipWidth - padding));
   adjustedY = Math.max(padding, Math.min(adjustedY, windowSize.height - tooltipHeight - padding));
 
-  const name = location.name || 'نامشخص';
-  const dataType = location.dataType;
-  const description = location.description || '';
-  const categoryLabel = dataType === 'strikes' ? 'حمله تایید شده' : 'سایت نظامی/غیرنظامی';
+  // Extract coordinates for Google Maps link
+  const getGoogleMapsLink = (location: LocationProperties): string => {
+    // Try to get coordinates from different possible sources
+    if (location.geometry?.coordinates) {
+      const [lng, lat] = location.geometry.coordinates;
+      return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    }
+    
+    if (location.coordinates) {
+      const [lng, lat] = location.coordinates;
+      return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    }
+    
+    if (location.Latitude && location.Longitude) {
+      return `https://www.google.com/maps/search/?api=1&query=${location.Latitude},${location.Longitude}`;
+    }
+    
+    // Fallback - search by name
+    const name = getDisplayName(location);
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
+  };
+
+  const googleMapsLink = getGoogleMapsLink(location);
 
   return (
     <div 
-      className={`fixed bg-white rounded-2xl shadow-2xl z-50 border border-gray-200 pointer-events-none transition-all duration-200 ease-out ${
+      data-tooltip="true"
+      className={`fixed bg-white rounded-2xl shadow-2xl z-50 border border-gray-200 transition-all duration-200 ease-out ${
         isMobile ? 'p-4' : 'p-5'
       }`}
       style={{
@@ -108,6 +221,8 @@ const LocationTooltip: React.FC<LocationTooltipProps> = ({ tooltipState }) => {
         animation: 'tooltipFadeIn 0.3s ease-out',
         direction: 'rtl'
       }}
+      onMouseEnter={(e) => e.stopPropagation()}
+      onMouseLeave={(e) => e.stopPropagation()}
     >
       <style>{`
         @keyframes tooltipFadeIn {
@@ -123,44 +238,57 @@ const LocationTooltip: React.FC<LocationTooltipProps> = ({ tooltipState }) => {
       `}</style>
       
       <div className={`${isMobile ? 'mb-3' : 'mb-4'}`}>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className={`font-bold text-gray-900 persian-text leading-tight ${
+        <div className="flex items-center justify-between mb-3" dir="rtl">
+          <h3 className={`font-bold text-gray-900 persian-text leading-tight text-right flex-1 ${
             isMobile ? 'text-base' : 'text-lg'
-          }`}>{name}</h3>
-          <MapPin className={`text-gray-400 flex-shrink-0 ml-2 ${
-            isMobile ? 'w-4 h-4' : 'w-5 h-5'
-          }`} />
+          }`}>{displayName}</h3>
+          <div className="flex items-center gap-2">
+            <a 
+              href={googleMapsLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-gray-600 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MapPin className={`text-gray-400 ${
+                isMobile ? 'w-4 h-4' : 'w-5 h-5'
+              }`} />
+            </a>
+            {onClose && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center justify-start">
-          <span className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-white shadow-sm ${getCategoryColor(dataType)} ${
+        <div className="flex items-center justify-start" dir="rtl">
+          <span className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-white shadow-sm ${category.color} ${
             isMobile ? 'text-xs' : 'text-xs'
           }`}>
-            {categoryLabel}
+            {category.label}
           </span>
         </div>
       </div>
       
-      {description && (
-        <div className={`${isMobile ? 'mb-3' : 'mb-4'}`}>
-          <p className={`text-gray-600 leading-relaxed persian-text ${
-            isMobile ? 'text-xs' : 'text-sm'
-          }`}>
-            {description}
-          </p>
-        </div>
-      )}
-      
-      {Object.keys(importantProps).length > 0 && (
-        <div className={`border-t ${isMobile ? 'pt-2 space-y-1' : 'pt-3 space-y-2'}`}>
-          {Object.entries(importantProps).map(([key, value]) => (
-            <div key={key} className="flex justify-between items-center py-1">
-              <span className={`text-gray-900 persian-text font-medium ${
-                isMobile ? 'text-xs' : 'text-sm'
-              }`}>{String(value)}</span>
-              <span className={`font-medium text-gray-500 persian-text ${
-                isMobile ? 'text-xs' : 'text-sm'
-              }`}>:{key}</span>
-            </div>
+      {Object.keys(filteredProps).length > 0 && (
+        <div className={`border-t ${isMobile ? 'pt-2 space-y-1' : 'pt-3 space-y-2'} max-h-80 overflow-y-auto`} dir="rtl">
+          {Object.entries(filteredProps).map(([key, value]) => (
+            <div key={key} className="flex justify-between items-start py-1 border-b border-gray-50 last:border-b-0" dir="rtl">
+
+                <div className={`font-medium text-gray-500 persian-text mb-1 ${
+                  isMobile ? 'text-xs' : 'text-sm'
+                }`}>{translateFieldName(key)}</div>
+                <div className={`text-gray-900 persian-text break-words ${
+                  isMobile ? 'text-xs' : 'text-sm'
+                }`}>{formatValue(value)}</div>
+              </div>
+            
           ))}
         </div>
       )}

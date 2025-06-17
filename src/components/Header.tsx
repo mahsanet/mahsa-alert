@@ -24,12 +24,12 @@ const Header: React.FC = () => {
             </div>
           </div>
           
-          <div className="hidden md:flex items-center space-x-6 text-white/80">
-            <div className="flex items-center space-x-2">
-              <Navigation className="w-4 h-4" />
-              <span className="text-sm">Hover over points to explore</span>
-            </div>
-          </div>
+          {/*<div className="hidden md:flex items-center space-x-6 text-white/80">*/}
+          {/*  <div className="flex items-center space-x-2">*/}
+          {/*    <Navigation className="w-4 h-4" />*/}
+          {/*    <span className="text-sm">بر روی آیکون‌ها</span>*/}
+          {/*  </div>*/}
+          {/*</div>*/}
         </div>
       </div>
     </div>

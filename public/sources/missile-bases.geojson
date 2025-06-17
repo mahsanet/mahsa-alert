@@ -1,0 +1,507 @@
+{
+     "type": "FeatureCollection",
+     "crs": {
+          "type": "name",
+          "properties": {
+               "name": "EPSG:4326"
+          }
+     },
+     "features": [
+          {
+               "type": "Feature",
+               "id": 1,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         56.4510210000001,
+                         27.5287890000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Bandar Abbas Area Independent Sites",
+                    "LOCATION_of_SITE": "Bandar Abbas Khorgu",
+                    "OBJECTID": 1
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 2,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         55.9426490000001,
+                         28.3287720000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Bandar Abbas Area Independent Sites",
+                    "LOCATION_of_SITE": "Haji Abad",
+                    "OBJECTID": 2
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 3,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         54.893197,
+                         26.658735
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Bandar Abbas Area Independent Sites",
+                    "LOCATION_of_SITE": "Bandar Lengeh",
+                    "OBJECTID": 3
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 4,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         54.2562530000001,
+                         27.64331
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Bandar Abbas Area Independent Sites",
+                    "LOCATION_of_SITE": "Lar",
+                    "OBJECTID": 4
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 5,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         52.893197,
+                         27.7941440000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Bandar Abbas Area Independent Sites",
+                    "LOCATION_of_SITE": "Jam",
+                    "OBJECTID": 5
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 6,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         51.0590260000001,
+                         35.7884100000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Garmdareh Cluster",
+                    "LOCATION_of_SITE": "Garmdareh North West",
+                    "OBJECTID": 6
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 7,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         51.0805320000001,
+                         35.7687290000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Garmdareh Cluster",
+                    "LOCATION_of_SITE": "Garmdareh North East",
+                    "OBJECTID": 7
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 8,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         51.4302700000001,
+                         32.695027
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Isfahan Cluster",
+                    "LOCATION_of_SITE": "Isfahan West",
+                    "OBJECTID": 8
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 9,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         51.714619,
+                         32.459346
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Isfahan Cluster",
+                    "LOCATION_of_SITE": "Isfahan South",
+                    "OBJECTID": 9
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 10,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         51.2557110000001,
+                         34.0933620000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Kashan (independent site or other sites nearby not detected)",
+                    "LOCATION_of_SITE": "Kashan",
+                    "OBJECTID": 10
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 11,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         56.8517130000001,
+                         30.239153
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Kerman (independent site or other sites nearby not detected)",
+                    "LOCATION_of_SITE": "Kerman",
+                    "OBJECTID": 11
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 12,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         47.228508,
+                         34.3605000000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Kermanshah Cluster",
+                    "LOCATION_of_SITE": "Kermanshah Panj Peleh",
+                    "OBJECTID": 12
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 13,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         47.181043,
+                         34.3895210000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Kermanshah Cluster",
+                    "LOCATION_of_SITE": "Kermanshah Konesh Canyon",
+                    "OBJECTID": 13
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 14,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         47.222654,
+                         34.3947880000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Kermanshah Cluster",
+                    "LOCATION_of_SITE": "Kermanshah South",
+                    "OBJECTID": 14
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 15,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         47.361183,
+                         34.525045
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Kermanshah Cluster",
+                    "LOCATION_of_SITE": "Kermanshah North East",
+                    "OBJECTID": 15
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 16,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         47.187934,
+                         34.4399500000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Kermanshah Cluster",
+                    "LOCATION_of_SITE": "Kermanshah North West",
+                    "OBJECTID": 16
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 17,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         47.0095830000001,
+                         34.482361
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Kermanshah Cluster",
+                    "LOCATION_of_SITE": "Kermanshah Shahid Montazeri Garrison",
+                    "OBJECTID": 17
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 18,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         48.1813560000001,
+                         33.5812760000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Khorramabad Cluster",
+                    "LOCATION_of_SITE": "Khorramabad Imam Ali NW",
+                    "OBJECTID": 18
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 19,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         48.2172380000001,
+                         33.5643240000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Khorramabad Cluster",
+                    "LOCATION_of_SITE": "Khorramabad Imam Ali SE",
+                    "OBJECTID": 19
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 20,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         48.2148240000001,
+                         33.552829
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Khorramabad Cluster",
+                    "LOCATION_of_SITE": "Khorramabad Imam Ali Garrison",
+                    "OBJECTID": 20
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 21,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         50.763649,
+                         34.943853
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Qom (independent site or other sites nearby not detected)",
+                    "LOCATION_of_SITE": "Qom",
+                    "OBJECTID": 21
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 22,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         52.558008,
+                         29.7263100000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Shiraz Cluster",
+                    "LOCATION_of_SITE": "Shiraz North West",
+                    "OBJECTID": 22
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 23,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         52.590671,
+                         29.7077200000001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Shiraz Cluster",
+                    "LOCATION_of_SITE": "Shiraz North",
+                    "OBJECTID": 23
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 24,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         52.4901860000001,
+                         29.473558
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Shiraz Cluster",
+                    "LOCATION_of_SITE": "Shiraz South",
+                    "OBJECTID": 24
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 25,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         46.025,
+                         37.941
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Tabriz Cluster",
+                    "LOCATION_of_SITE": "Khosroshah Garrison",
+                    "OBJECTID": 25
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 26,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         46.1191870000001,
+                         38.251449
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Tabriz Cluster",
+                    "LOCATION_of_SITE": "Tabriz North",
+                    "OBJECTID": 26
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 27,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         46.176606,
+                         37.977313
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Tabriz Cluster",
+                    "LOCATION_of_SITE": "Tabriz South",
+                    "OBJECTID": 27
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 28,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         54.298661,
+                         31.803792
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Yazd (independent site or other sites nearby not detected)",
+                    "LOCATION_of_SITE": "Yazd",
+                    "OBJECTID": 28
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 30,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         53.912674731,
+                         35.2484064290001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Imam Khomeini Launch Terminal",
+                    "LOCATION_of_SITE": "Semnan",
+                    "OBJECTID": 30
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 31,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         51.0824484460001,
+                         35.7278902300001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": null,
+                    "LOCATION_of_SITE": "Garmdareh Military Base",
+                    "OBJECTID": 31
+               }
+          },
+          {
+               "type": "Feature",
+               "id": 32,
+               "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                         50.901804709,
+                         35.6256424520001
+                    ]
+               },
+               "properties": {
+                    "BASES_CLUSTER": "Bid Kaneh",
+                    "LOCATION_of_SITE": "Shahid Modarres Garrison Rocket production facility",
+                    "OBJECTID": 32
+               }
+          }
+     ]
+}

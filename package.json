@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@mapbox/mapbox-gl-rtl-text": "^0.3.0",
+    "@turf/turf": "^7.2.0",
+    "@types/turf": "^3.5.32",
     "lucide-react": "^0.344.0",
     "maplibre-gl": "^5.6.0",
     "react": "^18.3.1",

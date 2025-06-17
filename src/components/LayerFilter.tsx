@@ -45,10 +45,10 @@ const LayerFilter: React.FC<LayerFilterProps> = ({ layers, onLayerToggle }) => {
             {layers.map((layer) => (
               <div key={layer.id} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: layer.color }}
-                  />
+                  {/*<div*/}
+                  {/*  className="w-3 h-3 rounded-full ml-2"*/}
+                  {/*  style={{ backgroundColor: layer.color }}*/}
+                  {/*/>*/}
                   <span className="text-white text-sm">{layer.name}</span>
                 </div>
                 

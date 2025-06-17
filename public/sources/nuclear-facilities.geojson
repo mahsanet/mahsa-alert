@@ -1,0 +1,229 @@
+{
+  "type": "FeatureCollection",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          51.8305310000001,
+          32.578719
+        ]
+      },
+      "properties": {
+        "Site": "Isfahan Nuclear Technology Center"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          51.3891462230001,
+          35.6894693250001
+        ]
+      },
+      "properties": {
+        "Site": "Tehran Nuclear Research Center"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          55.58395405,
+          32.8184407680001
+        ]
+      },
+      "properties": {
+        "Site": "Saghand Uranium Mine"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          54.3572018660001,
+          31.9032334010001
+        ]
+      },
+      "properties": {
+        "Site": "Yazd Radiation Processing Center (YRPC)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          54.609496398,
+          32.6324474670001
+        ]
+      },
+      "properties": {
+        "Site": "Yellow cake factory in Ardakan"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          53.6960866260001,
+          33.3062426700001
+        ]
+      },
+      "properties": {
+        "Site": "Anarak Waste Storage Facility"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          50.8206596410001,
+          28.928173454
+        ]
+      },
+      "properties": {
+        "Site": "Bushehr Nuclear Power Plant (BNPP)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          51.7253572400001,
+          33.7277750900001
+        ]
+      },
+      "properties": {
+        "Site": "Natanz Nuclear Facility"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          50.9826084520001,
+          34.890581049
+        ]
+      },
+      "properties": {
+        "Site": "Fordow Fuel Enrichment Plant"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          51.6461709810001,
+          35.3297021600001
+        ]
+      },
+      "properties": {
+        "Site": "Parchin Military Complex"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          49.241070107,
+          34.3709180980001
+        ]
+      },
+      "properties": {
+        "Site": "Arak Nuclear Complex"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          50.8579029690001,
+          35.907510616
+        ]
+      },
+      "properties": {
+        "Site": "Karaj Nuclear Research Centre for Medicine and Agriculture"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.0565549900001,
+          37.3485209840001
+        ]
+      },
+      "properties": {
+        "Site": "Bonab Atomic Energy Research Center"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "Site": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "Site": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "Site": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "Site": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "Site": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "Site": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "Site": null
+      }
+    }
+  ]
+}
