@@ -1,14 +1,18 @@
 import { useCallback, useState } from "react";
 import Header from "./components/Header";
-import LayerFilter, { type LayerConfig } from "./components/LayerFilter";
+import LayerFilter from "./components/LayerFilter";
 import LocateButton from "./components/LocateButton";
 import LocationTooltip from "./components/LocationTooltip";
 import MapComponent from "./components/MapComponent";
 import ProximityAlert from "./components/ProximityAlert";
 import ThemeToggle from "./components/ThemeToggle";
 import Legend from "./components/WarningBox";
+import { borderIds } from "./map-entities/borders";
+import { BordersProvider } from "./map-entities/borders.context";
+import type { layerIds } from "./map-entities/layers";
+import { LayersProvider } from "./map-entities/layers.context";
+import { UserLocationProvider } from "./map-entities/user-location.context";
 import type { LocationProperties } from "./types";
-import type { LocationData } from "./utils/locationProximity";
 
 interface TooltipState {
 	location: LocationProperties;
@@ -17,52 +21,13 @@ interface TooltipState {
 }
 
 function App() {
+	const [isDarkMode, setIsDarkMode] = useState(true);
+
 	const [tooltipState, setTooltipState] = useState<TooltipState | null>(null);
 	const [warningBoxVisible, setWarningBoxVisible] = useState(true);
 	const [isFirstTimeWarning, setIsFirstTimeWarning] = useState(true);
 	const [isWarningExpanded, setIsWarningExpanded] = useState(false);
-	const [isDarkMode, setIsDarkMode] = useState(true);
 	const [shouldZoomToEvac, setShouldZoomToEvac] = useState(false);
-	const [userLocation, setUserLocation] = useState<{
-		lat: number;
-		lng: number;
-	} | null>(null);
-	const [locationData, setLocationData] = useState<LocationData>({});
-
-	const [layers, setLayers] = useState<LayerConfig[]>([
-		{
-			id: "strikes",
-			name: "حملات تایید شده",
-			color: "#b81102",
-			visible: true,
-		},
-		{
-			id: "sites",
-			name: "پایگاه‌های موشکی",
-			color: "#ff9100",
-			visible: true,
-		},
-		{
-			id: "nuclear",
-			name: "مراکز هسته‌ای",
-			color: "#ff9100",
-			visible: true,
-		},
-		{
-			id: "evac",
-			name: "مناطق تخلیه",
-			color: "#ff0000",
-			visible: true,
-		},
-	]);
-
-	const layerVisibility = layers.reduce(
-		(acc, layer) => {
-			acc[layer.id] = layer.visible;
-			return acc;
-		},
-		{} as { [layerId: string]: boolean },
-	);
 
 	const handleLocationHover = useCallback(
 		(location: LocationProperties | null, mouseEvent?: MouseEvent) => {
@@ -120,15 +85,11 @@ function App() {
 		setIsWarningExpanded(true);
 	}, []);
 
-	const handleLayerToggle = useCallback((layerId: string, visible: boolean) => {
-		setLayers((prevLayers) =>
-			prevLayers.map((layer) =>
-				layer.id === layerId ? { ...layer, visible } : layer,
-			),
-		);
-
+	const handleLayerToggle = useCallback<
+		Parameters<typeof LayerFilter>[0]["onLayerToggle"]
+	>((id: keyof typeof layerIds | keyof typeof borderIds, visible: boolean) => {
 		// Zoom to evacuation area when evac layer is turned on
-		if (layerId === "evac" && visible) {
+		if (id === borderIds.evac && visible) {
 			setShouldZoomToEvac(true);
 			// Reset zoom trigger after a delay
 			setTimeout(() => setShouldZoomToEvac(false), 100);
@@ -139,17 +100,6 @@ function App() {
 		setIsDarkMode((prev) => !prev);
 	}, []);
 
-	const handleLocationFound = useCallback(
-		(coords: { lat: number; lng: number }) => {
-			setUserLocation(coords);
-		},
-		[],
-	);
-
-	const handleDataSourcesLoad = useCallback((dataSources: LocationData) => {
-		setLocationData(dataSources);
-	}, []);
-
 	return (
 		<div
 			className={`h-screen w-full relative overflow-hidden ${isDarkMode ? "bg-gray-900" : "bg-gray-100"}`}
@@ -157,34 +107,37 @@ function App() {
 			<Header />
 			<ThemeToggle isDarkMode={isDarkMode} onToggle={handleThemeToggle} />
 
-			<div className="h-full w-full">
-				<MapComponent
-					onLocationHover={handleLocationHover}
-					onMouseMove={handleMouseMove}
-					layerVisibility={layerVisibility}
-					isDarkMode={isDarkMode}
-					shouldZoomToEvac={shouldZoomToEvac}
-					userLocation={userLocation}
-					onDataSourcesLoad={handleDataSourcesLoad}
-				/>
-			</div>
+			<UserLocationProvider>
+				<LayersProvider>
+					<BordersProvider>
+						<div className="h-full w-full">
+							<MapComponent
+								onLocationHover={handleLocationHover}
+								onMouseMove={handleMouseMove}
+								isDarkMode={isDarkMode}
+								shouldZoomToEvac={shouldZoomToEvac}
+							/>
+						</div>
 
-			<Legend
-				isVisible={warningBoxVisible}
-				onClose={handleCloseWarningBox}
-				isCompact={!isFirstTimeWarning && !isWarningExpanded}
-				onExpand={handleExpandWarning}
-			/>
-			<LayerFilter layers={layers} onLayerToggle={handleLayerToggle} />
-			<LocateButton
-				onLocationFound={handleLocationFound}
-				isDarkMode={isDarkMode}
-			/>
-			<ProximityAlert userLocation={userLocation} locationData={locationData} />
-			<LocationTooltip
-				tooltipState={tooltipState}
-				onClose={() => setTooltipState(null)}
-			/>
+						<Legend
+							isVisible={warningBoxVisible}
+							onClose={handleCloseWarningBox}
+							isCompact={!isFirstTimeWarning && !isWarningExpanded}
+							onExpand={handleExpandWarning}
+						/>
+						<LayerFilter
+							isDarkMode={isDarkMode}
+							onLayerToggle={handleLayerToggle}
+						/>
+						<LocateButton isDarkMode={isDarkMode} />
+						<ProximityAlert />
+						<LocationTooltip
+							tooltipState={tooltipState}
+							onClose={() => setTooltipState(null)}
+						/>
+					</BordersProvider>
+				</LayersProvider>
+			</UserLocationProvider>
 
 			{/* Instructions overlay for mobile */}
 			<div className="absolute bottom-6 right-6 md:hidden bg-black/60 backdrop-blur-sm rounded-lg p-3 text-white text-xs max-w-48">

@@ -163,24 +163,6 @@ const Warning: React.FC<WarningProps> = ({
 
 				{!isCompact && (
 					<div className="transition-all duration-300 ease-out">
-						{/*<div className="border-t border-gray-600 py-4">*/}
-						{/*<h4 className="text-sm font-semibold text-white mb-2">راهنمای نقشه:</h4>*/}
-						{/*<div className="space-y-3">*/}
-						{/*  <div className="flex items-center gap-3">*/}
-						{/*    <div className="w-4 h-4 rounded-full bg-red-700 border-2 border-white"></div>*/}
-						{/*    <span className="text-xs text-gray-300">حملات تایید شده</span>*/}
-						{/*  </div>*/}
-						{/*  <div className="flex items-center gap-3">*/}
-						{/*    <div className="w-4 h-4 rounded-full bg-red-700 border-2 border-white"></div>*/}
-						{/*    <span className="text-xs text-gray-300">حملات تایید شده</span>*/}
-						{/*  </div>*/}
-						{/*  <div className="flex items-center gap-3">*/}
-						{/*    <div className="w-4 h-4 rounded-full bg-orange-500 border-2 border-white"></div>*/}
-						{/*    <span className="text-xs text-gray-300">سایت های نظامی و غیرنظامی</span>*/}
-						{/*  </div>*/}
-						{/*</div>*/}
-						{/*</div>*/}
-
 						<div className="border-t border-gray-600 pt-3">
 							<div className="space-y-1">
 								<p className="text-xs text-gray-400 leading-relaxed">
