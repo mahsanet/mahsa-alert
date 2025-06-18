@@ -1,33 +1,22 @@
 import type React from "react";
 import { useState } from "react";
 import { FaFilter, FaTimes } from "react-icons/fa";
-import type { borderIds } from "../map-entities/borders";
-import { useBorders } from "../map-entities/borders.context";
-import type { layerIds } from "../map-entities/layers";
-import { useLayers } from "../map-entities/layers.context";
+import { useLayers } from "@/map-entities/layers";
+import { useTheme } from "@/ui/theme-provider";
 
-interface LayerFilterProps {
-	onLayerToggle: (
-		id: keyof typeof layerIds | keyof typeof borderIds,
-		visible: boolean,
-	) => void;
-	isDarkMode: boolean;
-}
-
-const LayerFilter: React.FC<LayerFilterProps> = ({
-	isDarkMode,
-	onLayerToggle,
-}) => {
+const LayerFilter: React.FC<{ className?: string }> = ({ className }) => {
+	const { isDarkMode } = useTheme();
 	const [isExpanded, setIsExpanded] = useState(false);
 	const { layers, toggleLayerVisibility } = useLayers();
-	const { borders, toggleBorderVisibility } = useBorders();
 
 	const toggleExpanded = () => {
 		setIsExpanded(!isExpanded);
 	};
 
+	const entities = Object.values(layers);
+
 	return (
-		<div className="fixed top-20 right-4 z-50 rtl">
+		<div className={`rtl ${className}`}>
 			{!isExpanded ? (
 				<button
 					type="button"
@@ -66,47 +55,40 @@ const LayerFilter: React.FC<LayerFilterProps> = ({
 					</div>
 
 					<div className="space-y-3">
-						{[...Object.values(layers), ...Object.values(borders)].map(
-							(entity) => (
-								<div
-									key={entity.id}
-									className="flex items-center justify-between"
-								>
-									<div className="flex items-center space-x-3 rtl:space-x-reverse">
-										<span
-											className={`text-sm ${
-												isDarkMode ? "text-white" : "text-gray-800"
-											}`}
-										>
-											{entity.name}
-										</span>
-									</div>
-
-									<label className="relative inline-flex items-center cursor-pointer">
-										<input
-											type="checkbox"
-											checked={entity.visible}
-											onChange={(e) => {
-												if (entity.type === "border") {
-													toggleBorderVisibility(entity.id, e.target.checked);
-												} else {
-													toggleLayerVisibility(entity.id, e.target.checked);
-												}
-												onLayerToggle(entity.id, e.target.checked);
-											}}
-											className="sr-only peer"
-										/>
-										<div
-											className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all ${
-												isDarkMode
-													? "bg-gray-200 peer-checked:bg-blue-600 peer-checked:after:bg-white"
-													: "bg-gray-200 peer-checked:bg-blue-600 peer-checked:after:bg-white"
-											}`}
-										/>
-									</label>
+						{entities.map((entity) => (
+							<div
+								key={entity.id}
+								className="flex items-center justify-between"
+							>
+								<div className="flex items-center space-x-3 rtl:space-x-reverse">
+									<span
+										className={`text-sm ${
+											isDarkMode ? "text-white" : "text-gray-800"
+										}`}
+									>
+										{entity.name}
+									</span>
 								</div>
-							),
-						)}
+
+								<label className="relative inline-flex items-center cursor-pointer">
+									<input
+										type="checkbox"
+										checked={entity.visible}
+										onChange={(e) => {
+											toggleLayerVisibility(entity.id, e.target.checked);
+										}}
+										className="sr-only peer"
+									/>
+									<div
+										className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all ${
+											isDarkMode
+												? "bg-gray-200 peer-checked:bg-blue-600 peer-checked:after:bg-white"
+												: "bg-gray-200 peer-checked:bg-blue-600 peer-checked:after:bg-white"
+										}`}
+									/>
+								</label>
+							</div>
+						))}
 					</div>
 				</div>
 			)}

@@ -1,7 +1,7 @@
 import { MapPin, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import type { LocationProperties } from "../types";
+import type { LocationProperties } from "@/types";
 
 interface TooltipState {
 	location: LocationProperties;

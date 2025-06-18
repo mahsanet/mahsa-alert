@@ -15,16 +15,25 @@
 	},
 	"dependencies": {
 		"@mapbox/mapbox-gl-rtl-text": "^0.3.0",
+		"@radix-ui/react-dialog": "^1.1.14",
+		"@radix-ui/react-slot": "^1.2.3",
 		"@turf/turf": "^7.2.0",
 		"@types/turf": "^3.5.32",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
 		"lucide-react": "^0.344.0",
 		"maplibre-gl": "^5.6.0",
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
-		"react-icons": "^5.5.0"
+		"react-icons": "^5.5.0",
+		"tailwind-merge": "^3.3.1",
+		"tailwindcss-animate": "^1.0.7",
+		"vaul": "^1.1.2"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.0.0-beta.6",
+		"@tailwindcss/vite": "^4.1.10",
+		"@types/node": "^24.0.3",
 		"@types/react": "^18.3.5",
 		"@types/react-dom": "^18.3.0",
 		"@vitejs/plugin-react": "^4.3.1",
@@ -32,7 +41,7 @@
 		"globals": "^15.9.0",
 		"lefthook": "1.11.13",
 		"postcss": "^8.4.35",
-		"tailwindcss": "^3.4.1",
+		"tailwindcss": "^4.1.10",
 		"typescript": "^5.5.3",
 		"vite": "^5.4.2"
 	}

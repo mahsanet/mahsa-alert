@@ -7,15 +7,13 @@ import maplibregl, {
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useBordersDataRef } from "../map-entities/border.context.ref";
-import { totalBorders } from "../map-entities/borders";
-import { useBorders } from "../map-entities/borders.context";
-import { cartoConfig } from "../map-entities/carto";
-import { totalLayers } from "../map-entities/layers";
-import { useLayers } from "../map-entities/layers.context";
-import { useUserLocation } from "../map-entities/user-location.context";
-import type { LocationFeature, LocationProperties } from "../types";
-import { calculateBounds } from "./MapComponent.utils";
+import { totalBorders } from "@/map-entities/borders/borders";
+import { useBorders } from "@/map-entities/borders/borders.context";
+import { cartoConfig } from "@/map-entities/carto";
+import { totalLayers, useLayers } from "@/map-entities/layers";
+import { useUserLocation } from "@/map-entities/user-location";
+import type { LocationFeature, LocationProperties } from "@/types";
+import { useTheme } from "@/ui/theme-provider";
 
 interface MapComponentProps {
 	onLocationHover: (
@@ -23,8 +21,8 @@ interface MapComponentProps {
 		mouseEvent?: MouseEvent,
 	) => void;
 	onMouseMove: (mouseEvent: MouseEvent) => void;
-	isDarkMode: boolean;
 	shouldZoomToEvac?: boolean;
+	zoomToBounds?: [[number, number], [number, number]] | null;
 }
 
 const maxDelay = 3000;
@@ -34,12 +32,12 @@ const getDelay = (retryCount: number) => Math.min(1000 * retryCount, maxDelay);
 const MapComponent: React.FC<MapComponentProps> = ({
 	onLocationHover,
 	onMouseMove,
-	isDarkMode,
-	shouldZoomToEvac,
+	zoomToBounds,
 }) => {
+	const { isDarkMode } = useTheme();
+
 	const { layers, layersData, isLayersDataLoaded } = useLayers();
 	const { borders, bordersData, isBordersDataLoaded } = useBorders();
-	const bordersDataRef = useBordersDataRef();
 	const { userLocationConfig, userLocationData, userLocation } =
 		useUserLocation();
 
@@ -131,20 +129,16 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		});
 	}, [layers, borders]);
 
-	// Zoom to evacuation area when shouldZoomToEvac is true
+	// Zoom to specific bounds when zoomToBounds is provided
 	useEffect(() => {
-		if (!map.current || !shouldZoomToEvac || !bordersDataRef.current.evac.data)
-			return;
+		if (!map.current || !zoomToBounds) return;
 
-		const bounds = calculateBounds(bordersDataRef.current.evac.data);
-		if (bounds) {
-			map.current.fitBounds(bounds, {
-				padding: 10,
-				duration: 1000,
-				maxZoom: 13,
-			});
-		}
-	}, [shouldZoomToEvac, bordersDataRef]);
+		map.current.fitBounds(zoomToBounds, {
+			padding: 10,
+			duration: 1000,
+			maxZoom: 13,
+		});
+	}, [zoomToBounds]);
 
 	const loadCartoLayer = useCallback(() => {
 		if (!map.current) return;
@@ -361,8 +355,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
 					},
 					paint: {
 						"text-color": layer.label.textColor,
-						"text-halo-color": isDarkMode ? "#FFFFFF" : "#000000",
-						"text-halo-width": 0.8,
+						"text-halo-color": !isDarkMode ? "#FFFFFF" : "#000000",
+						"text-halo-width": 2,
 					},
 				});
 			}

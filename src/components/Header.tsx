@@ -1,28 +1,21 @@
 import type React from "react";
+import type { ReactNode } from "react";
 
-const Header: React.FC = () => {
+const Header: React.FC<{ children: ReactNode }> = ({ children }) => {
 	return (
-		<div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-gray-900/80 via-gray-900/60 to-transparent backdrop-blur-sm">
-			<div className="container mx-auto px-6 py-6">
-				<div className="flex items-center justify-between">
-					<div className="flex items-center space-x-3">
-						<div className="flex items-center justify-center w-12 h-12 shadow-lg">
-							<img
-								src="/assets/img/logo.jpeg"
-								alt="logo"
-								className="w-15 h-15 rounded-xl "
-							/>
-						</div>
-						<div>
-							<div className="flex items-center gap-5">
-								<h1 className="text-2xl font-bold text-white">Mahsa Alert</h1>
-								<span className="text-blue-300 text-sm">Beta</span>
-							</div>
+		<div className="fixed top-4 md:top-8 left-1/2 transform -translate-x-1/2 z-40 w-full max-w-sm md:max-w-lg">
+			<div className="flex items-center w-full bg-black/80 backdrop-blur-md rounded-xl md:rounded-2xl px-4 py-3 md:px-3 md:py-4 text-white border border-gray-600 hover:bg-black/90 transition-colors">
+				<img
+					src="/assets/img/logo.jpeg"
+					alt="logo"
+					className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl"
+				/>
+				<h1 className="text-xl md:text-3xl font-bold text-white items-center mt-1 flex ml-2 md:ml-3">
+					Mahsa Alert
+					<span className="text-xs md:text-sm ml-1 md:ml-2">(beta)</span>
+				</h1>
 
-							<p className="text-blue-200 text-sm">©2025 MahsaNet</p>
-						</div>
-					</div>
-				</div>
+				{children}
 			</div>
 		</div>
 	);

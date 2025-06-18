@@ -1,23 +1,33 @@
 import { Moon, Sun } from "lucide-react";
 import type React from "react";
+import { useTheme } from "@/ui/theme-provider";
 
 interface ThemeToggleProps {
-	isDarkMode: boolean;
-	onToggle: () => void;
+	className?: string;
 }
 
-const ThemeToggle: React.FC<ThemeToggleProps> = ({ isDarkMode, onToggle }) => {
+const ThemeToggle: React.FC<ThemeToggleProps> = ({ className }) => {
+	const { setTheme, isDarkMode } = useTheme();
+
+	const handleToggle = () => {
+		setTheme(isDarkMode ? "light" : "dark");
+	};
+
 	return (
 		<button
 			type="button"
-			onClick={onToggle}
-			className="fixed top-4 right-4 z-50 p-2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors"
-			aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+			onClick={handleToggle}
+			className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 border ${
+				!isDarkMode
+					? "bg-gray-800 border-gray-600 hover:bg-gray-700 text-white"
+					: "bg-white border-gray-300 hover:bg-gray-300 text-gray-800"
+			} ${className}`}
+			aria-label={isDarkMode ? "پوسته روشن" : "پوسته تاریک"}
 		>
 			{isDarkMode ? (
-				<Sun className="w-5 h-5 text-yellow-300" />
+				<Sun className="w-5 h-5 text-black" />
 			) : (
-				<Moon className="w-5 h-5 text-gray-700" />
+				<Moon className="w-5 h-5 text-white" />
 			)}
 		</button>
 	);

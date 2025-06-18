@@ -1,14 +1,13 @@
 import { Navigation, NavigationOff } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { useUserLocation } from "../map-entities/user-location.context";
+import { useUserLocation } from "@/map-entities/user-location/user-location.context";
+import { useTheme } from "@/ui/theme-provider";
 import LocationPrivacyModal from "./LocationPrivacyModal";
 
-interface LocateButtonProps {
-	isDarkMode: boolean;
-}
+const LocateButton: React.FC<{ className?: string }> = ({ className }) => {
+	const { isDarkMode } = useTheme();
 
-const LocateButton: React.FC<LocateButtonProps> = ({ isDarkMode }) => {
 	const { setUserLocation } = useUserLocation();
 
 	const [isLocating, setIsLocating] = useState(false);
@@ -157,7 +156,7 @@ const LocateButton: React.FC<LocateButtonProps> = ({ isDarkMode }) => {
 				isDarkMode={isDarkMode}
 			/>
 
-			<div className="fixed top-36 right-4 z-20 flex flex-col gap-2">
+			<div className={`flex flex-col gap-2 ${className}`}>
 				<style>{`
 					@keyframes fadeIn {
 						from {

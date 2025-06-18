@@ -1,15 +1,15 @@
 import { AlertTriangle, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { useLayers } from "../map-entities/layers.context";
-import { useUserLocation } from "../map-entities/user-location.context";
+import { useLayers } from "@/map-entities/layers";
+import { useUserLocation } from "@/map-entities/user-location";
 import {
 	checkLocationProximity,
 	generateWarningMessage,
 	type ProximityResult,
-} from "../utils/locationProximity";
+} from "@/utils/locationProximity";
 
-const ProximityAlert: React.FC = () => {
+const ProximityAlert: React.FC<{ className?: string }> = ({ className }) => {
 	const { layersData } = useLayers();
 	const { userLocation } = useUserLocation();
 
@@ -77,7 +77,9 @@ const ProximityAlert: React.FC = () => {
         }
       `}</style>
 
-			<div className="fixed inset-4 z-50 flex items-center justify-center pointer-events-none">
+			<div
+				className={`flex items-center justify-center pointer-events-none ${className}`}
+			>
 				<div
 					className={`
           w-full max-w-xs sm:max-w-sm md:max-w-md rounded-xl shadow-2xl border-2 transition-all duration-300 ease-out pointer-events-auto

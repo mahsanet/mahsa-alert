@@ -1,4 +1,4 @@
-import type { LocationDataType } from "../types";
+import type { LocationDataType } from "@/types";
 
 // Function to calculate bounds for GeoJSON data
 export const calculateBounds = (
