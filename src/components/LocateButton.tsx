@@ -1,17 +1,16 @@
 import { Navigation, NavigationOff } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useUserLocation } from "../map-entities/user-location.context";
 import LocationPrivacyModal from "./LocationPrivacyModal";
 
 interface LocateButtonProps {
-	onLocationFound: (coords: { lat: number; lng: number }) => void;
 	isDarkMode: boolean;
 }
 
-const LocateButton: React.FC<LocateButtonProps> = ({
-	onLocationFound,
-	isDarkMode,
-}) => {
+const LocateButton: React.FC<LocateButtonProps> = ({ isDarkMode }) => {
+	const { setUserLocation } = useUserLocation();
+
 	const [isLocating, setIsLocating] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [watchId, setWatchId] = useState<number | null>(null);
@@ -94,13 +93,12 @@ const LocateButton: React.FC<LocateButtonProps> = ({
 		};
 
 		const successCallback = (position: GeolocationPosition) => {
-			const coords = {
+			setUserLocation({
 				lat: position.coords.latitude,
 				lng: position.coords.longitude,
-			};
-			onLocationFound(coords);
+			});
 			setError(null);
-			setIsLocating(false); // Location found successfully, stop loading state
+			setIsLocating(false);
 		};
 
 		const errorCallback = (error: GeolocationPositionError) => {
@@ -136,6 +134,10 @@ const LocateButton: React.FC<LocateButtonProps> = ({
 	const handleStopTracking = () => {
 		if (watchId) {
 			navigator.geolocation.clearWatch(watchId);
+			setUserLocation({
+				lat: 0,
+				lng: 0,
+			});
 			setWatchId(null);
 			setIsLocating(false);
 			setHasLocationPermission(false);

@@ -12,6 +12,7 @@ import { totalBorders } from "../map-entities/borders";
 import { useBorders } from "../map-entities/borders.context";
 import { totalLayers } from "../map-entities/layers";
 import { useLayers } from "../map-entities/layers.context";
+import { useUserLocation } from "../map-entities/user-location.context";
 import type {
 	LocationDataType,
 	LocationFeature,
@@ -26,8 +27,6 @@ interface MapComponentProps {
 	onMouseMove: (mouseEvent: MouseEvent) => void;
 	isDarkMode: boolean;
 	shouldZoomToEvac?: boolean;
-	userLocation?: { lat: number; lng: number } | null;
-	onDataSourcesLoad?: (dataSources: Record<string, LocationDataType>) => void;
 }
 
 // Function to calculate bounds for GeoJSON data
@@ -76,11 +75,12 @@ const MapComponent: React.FC<MapComponentProps> = ({
 	onMouseMove,
 	isDarkMode,
 	shouldZoomToEvac,
-	userLocation,
 }) => {
 	const { layers, layersData, isLayersDataLoaded } = useLayers();
 	const { borders, bordersData, isBordersDataLoaded } = useBorders();
 	const bordersDataRef = useBordersDataRef();
+	const { userLocationConfig, userLocationData, userLocation } =
+		useUserLocation();
 
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
@@ -186,43 +186,33 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		}
 	}, [shouldZoomToEvac, bordersDataRef]);
 
-	// Update user location marker
-	useEffect(() => {
-		if (!map.current || !userLocation) return;
+	const loadUserLocation = useCallback(() => {
+		if (!map.current) return;
 
-		const userLocationGeoJSON = {
-			type: "FeatureCollection" as const,
-			features: [
-				{
-					type: "Feature" as const,
-					properties: {
-						name: "موقعیت من",
-						accuracy: "بالا",
-					},
-					geometry: {
-						type: "Point" as const,
-						coordinates: [userLocation.lng, userLocation.lat],
-					},
-				},
-			],
-		};
+		if (!userLocationData || !userLocation) {
+			map.current.removeLayer(userLocationConfig.circleKey);
+			map.current.removeLayer(userLocationConfig.accuracyKey);
+			map.current.removeSource(userLocationConfig.sourceKey);
+			return;
+		}
 
 		// Add or update user location source
-		if (map.current.getSource("user-location")) {
-			(map.current.getSource("user-location") as GeoJSONSource).setData(
-				userLocationGeoJSON,
-			);
+		const userLocationSource = map.current.getSource(
+			userLocationConfig.sourceKey,
+		) as GeoJSONSource;
+		if (userLocationSource) {
+			userLocationSource.setData(userLocationData);
 		} else {
-			map.current.addSource("user-location", {
+			map.current.addSource(userLocationConfig.sourceKey, {
 				type: "geojson",
-				data: userLocationGeoJSON,
+				data: userLocationData,
 			});
 
 			// Add user location circle
 			map.current.addLayer({
-				id: "user-location-circle",
+				id: userLocationConfig.circleKey,
 				type: "circle",
-				source: "user-location",
+				source: userLocationConfig.sourceKey,
 				paint: {
 					"circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 8, 10, 16],
 					"circle-color": "#4285f4",
@@ -234,9 +224,9 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
 			// Add user location accuracy circle
 			map.current.addLayer({
-				id: "user-location-accuracy",
+				id: userLocationConfig.accuracyKey,
 				type: "circle",
-				source: "user-location",
+				source: userLocationConfig.sourceKey,
 				paint: {
 					"circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 20, 10, 40],
 					"circle-color": "#4285f4",
@@ -251,10 +241,13 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		// Fly to user location
 		map.current.flyTo({
 			center: [userLocation.lng, userLocation.lat],
-			zoom: 15,
+			zoom: 13,
 			duration: 2000,
 		});
-	}, [userLocation]);
+	}, [userLocation, userLocationData, userLocationConfig]);
+	useEffect(() => {
+		loadUserLocation();
+	}, [loadUserLocation]);
 
 	const loadBorders = useCallback(() => {
 		if (!map.current || !isLayersDataLoaded) return;
