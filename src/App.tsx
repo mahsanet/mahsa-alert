@@ -125,7 +125,10 @@ function App() {
 							isCompact={!isFirstTimeWarning && !isWarningExpanded}
 							onExpand={handleExpandWarning}
 						/>
-						<LayerFilter onLayerToggle={handleLayerToggle} />
+						<LayerFilter
+							isDarkMode={isDarkMode}
+							onLayerToggle={handleLayerToggle}
+						/>
 						<LocateButton isDarkMode={isDarkMode} />
 						<ProximityAlert />
 						<LocationTooltip
