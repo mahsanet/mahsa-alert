@@ -96,14 +96,21 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
 	const isMobile = useCallback(() => window.innerWidth < 768, []);
 
-	// Store the data sources for re-adding after theme switch
-	const dataSourcesRef = useRef<{
-		strikes?: LocationDataType;
-		sites?: LocationDataType;
-		nuclear?: LocationDataType;
-		iranBorder?: LocationDataType;
-		evac?: LocationDataType;
-	}>({});
+	// Cleanup on unmount
+	useEffect(() => {
+		return () => {
+			if (map.current) {
+				map.current.remove();
+				map.current = null;
+			}
+		};
+	}, []);
+
+	// Set parent mouse event handlers refs
+	useEffect(() => {
+		onLocationHoverRef.current = onLocationHover;
+		onMouseMoveRef.current = onMouseMove;
+	}, [onLocationHover, onMouseMove]);
 
 	const retryMapLoad = useCallback(() => {
 		setIsRetrying(true);
@@ -117,9 +124,6 @@ const MapComponent: React.FC<MapComponentProps> = ({
 			map.current = null;
 		}
 
-		// Clear data sources
-		dataSourcesRef.current = {};
-
 		// Reset states
 		setIsMapLoaded(false);
 
@@ -127,11 +131,6 @@ const MapComponent: React.FC<MapComponentProps> = ({
 			setIsRetrying(false);
 		}, 2000);
 	}, []);
-
-	useEffect(() => {
-		onLocationHoverRef.current = onLocationHover;
-		onMouseMoveRef.current = onMouseMove;
-	}, [onLocationHover, onMouseMove]);
 
 	// Set layer visibility layout properties
 	useEffect(() => {
@@ -257,6 +256,233 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		});
 	}, [userLocation]);
 
+	const loadBorders = useCallback(() => {
+		if (!map.current || !isLayersDataLoaded) return;
+
+		totalBorders.forEach((border) => {
+			const hasSourceAlready =
+				border.source.key && map.current?.getSource(border.source.key);
+			const shouldAddSource =
+				border.visible &&
+				border.source.key &&
+				bordersData[border.id].data &&
+				!hasSourceAlready;
+			if (shouldAddSource) {
+				map.current?.addSource(border.source.key, {
+					type: "geojson",
+					data: bordersData[border.id]
+						.data as unknown as GeoJSON.FeatureCollection,
+				});
+			}
+
+			const hasFillLayerAlready = map.current?.getLayer(border.fill.key);
+			const shouldAddFillLayer =
+				border.visible && border.fill.key && !hasFillLayerAlready;
+			if (shouldAddFillLayer) {
+				map.current?.addLayer({
+					id: border.fill.key,
+					type: "fill",
+					source: border.source.key,
+					paint: {
+						"fill-color": border.fill.color,
+						"fill-opacity": 0.2,
+					},
+				});
+			}
+
+			const hasLinkLayerAlready = map.current?.getLayer(border.line.key);
+			const shouldAddLinkLayer =
+				border.visible && border.line.key && !hasLinkLayerAlready;
+			if (shouldAddLinkLayer) {
+				map.current?.addLayer({
+					id: border.line.key,
+					type: "line",
+					source: border.source.key,
+					paint: {
+						"line-color": border.line.color,
+						"line-width": 3,
+						"line-opacity": 0.8,
+					},
+				});
+			}
+		});
+	}, [bordersData, isLayersDataLoaded]);
+
+	const loadLayers = useCallback(() => {
+		if (!map.current || !isLayersDataLoaded) return;
+
+		totalLayers.forEach((layer) => {
+			// Add images for layers that have icons and are visible
+			const iconKey = layer.icon?.key;
+			const iconImage = layersData[layer.id].iconImage;
+			const hasImageAlready = iconKey && map.current?.hasImage(iconKey);
+			const shouldAddImage =
+				iconImage && iconKey && layer.visible && !hasImageAlready;
+			if (shouldAddImage) {
+				map.current?.addImage(iconKey, iconImage);
+			}
+
+			// Add sources for layers that have data and are visible
+			const hasSourceAlready =
+				layer.source.key && map.current?.getSource(layer.source.key);
+			const shouldAddSource =
+				layer.visible &&
+				layer.source.key &&
+				layersData[layer.id].data &&
+				!hasSourceAlready;
+			if (shouldAddSource) {
+				map.current?.addSource(layer.source.key, {
+					type: "geojson",
+					data: layersData[layer.id]
+						.data as unknown as GeoJSON.FeatureCollection,
+				});
+			}
+
+			// Add layers for layers that have data and are visible
+			const hasLayerAlready =
+				layer.layerKey && map.current?.getLayer(layer.layerKey);
+			const shouldAddLayer =
+				layer.visible &&
+				layer.layerKey &&
+				layersData[layer.id].data &&
+				!hasLayerAlready;
+			if (shouldAddLayer) {
+				map.current?.addLayer({
+					id: layer.layerKey,
+					type: "symbol",
+					source: layer.source.key,
+					layout: {
+						"icon-image": layer.icon?.key,
+						"icon-size": 0.4,
+						"icon-allow-overlap": true,
+						"icon-ignore-placement": true,
+					},
+				});
+			}
+
+			// Add label layers for layers that have data and are visible
+			const hasLabelLayerAlready =
+				layer.label.key && map.current?.getLayer(layer.label.key);
+			const shouldAddLabelLayer =
+				layer.visible &&
+				layer.label.key &&
+				layersData[layer.id].data &&
+				!hasLabelLayerAlready;
+			if (shouldAddLabelLayer) {
+				map.current?.addLayer({
+					id: layer.label.key,
+					type: "symbol",
+					source: layer.source.key,
+					layout: {
+						"text-field": ["get", layer.label.textField],
+						"text-offset": [0, 1.5],
+						"text-anchor": "top",
+						"text-size": ["interpolate", ["linear"], ["zoom"], 2, 11, 10, 18],
+						"text-allow-overlap": false,
+						"text-writing-mode": ["horizontal"],
+					},
+					paint: {
+						"text-color": layer.label.textColor,
+						"text-halo-color": isDarkMode ? "#FFFFFF" : "#000000",
+						"text-halo-width": 0.8,
+					},
+				});
+			}
+
+			// Desktop events (hover)
+			map.current?.on("mouseenter", layer.layerKey, (e) => {
+				if (!map.current || isMobile()) return;
+
+				map.current.getCanvas().style.cursor = "pointer";
+
+				if (e.features?.[0]) {
+					const properties = e.features[0].properties;
+					const coordinates = (e.features[0].geometry as Point).coordinates;
+
+					// Add coordinates to properties for tooltip
+					// @ts-expect-error
+					const enrichedProperties: MapGeoJSONFeature &
+						Pick<LocationFeature, "geometry" | "coordinates"> = {
+						...properties,
+						geometry: e.features[0].geometry,
+						coordinates: coordinates,
+					};
+
+					onLocationHoverRef.current(
+						enrichedProperties as unknown as LocationProperties,
+						e.originalEvent as MouseEvent,
+					);
+				}
+			});
+
+			map.current?.on("mousemove", layer.layerKey, (e) => {
+				if (!map.current || isMobile()) return;
+				onMouseMoveRef.current(e.originalEvent as MouseEvent);
+			});
+
+			map.current?.on("mouseleave", layer.layerKey, (_e) => {
+				if (!map.current || isMobile()) return;
+
+				// Check if mouse is moving to tooltip
+				// const rect = map.current.getContainer().getBoundingClientRect();
+
+				// Small delay to allow moving to tooltip
+				setTimeout(() => {
+					const tooltipElement = document.querySelector("[data-tooltip]");
+					if (!tooltipElement || !tooltipElement.matches(":hover")) {
+						if (map.current) {
+							map.current.getCanvas().style.cursor = "";
+							onLocationHoverRef.current(null);
+						}
+					}
+				}, 2000);
+			});
+
+			// Mobile and Desktop click events
+			map.current?.on("click", layer.layerKey, (e) => {
+				if (!map.current || !e.features || !e.features[0]) return;
+
+				const properties = e.features[0].properties as LocationProperties;
+				const coordinates = (
+					e.features[0].geometry as Point
+				).coordinates.slice();
+
+				if (isMobile()) {
+					// Add coordinates to properties for tooltip
+					const enrichedProperties = {
+						...properties,
+						geometry: e.features[0].geometry,
+						coordinates: coordinates,
+					};
+
+					onLocationHoverRef.current(
+						enrichedProperties as unknown as LocationProperties,
+						e.originalEvent as MouseEvent,
+					);
+				}
+
+				map.current?.flyTo({
+					center: coordinates as LngLatLike,
+					zoom: 10,
+					duration: 1000,
+				});
+			});
+		});
+
+		// Mobile click-to-close tooltip
+		if (isMobile()) {
+			map.current.on("click", (e) => {
+				const features = map.current?.queryRenderedFeatures(e.point, {
+					layers: totalLayers.map((layer) => layer.layerKey),
+				});
+
+				if (features?.length === 0) {
+					onLocationHoverRef.current(null);
+				}
+			});
+		}
+	}, [isMobile, isLayersDataLoaded, isDarkMode, layersData]);
+
 	const loadMap = useCallback(async () => {
 		if (!map.current || !map.current.isStyleLoaded()) return;
 
@@ -298,229 +524,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
 				maxzoom: 20,
 			});
 
-			totalBorders.forEach((border) => {
-				const hasSourceAlready =
-					border.source.key && map.current?.getSource(border.source.key);
-				const shouldAddSource =
-					border.visible &&
-					border.source.key &&
-					bordersData[border.id].data &&
-					!hasSourceAlready;
-				if (shouldAddSource) {
-					map.current?.addSource(border.source.key, {
-						type: "geojson",
-						data: bordersData[border.id]
-							.data as unknown as GeoJSON.FeatureCollection,
-					});
-				}
-
-				const hasFillLayerAlready = map.current?.getLayer(border.fill.key);
-				const shouldAddFillLayer =
-					border.visible && border.fill.key && !hasFillLayerAlready;
-				if (shouldAddFillLayer) {
-					map.current?.addLayer({
-						id: border.fill.key,
-						type: "fill",
-						source: border.source.key,
-						paint: {
-							"fill-color": border.fill.color,
-							"fill-opacity": 0.2,
-						},
-					});
-				}
-
-				const hasLinkLayerAlready = map.current?.getLayer(border.line.key);
-				const shouldAddLinkLayer =
-					border.visible && border.line.key && !hasLinkLayerAlready;
-				if (shouldAddLinkLayer) {
-					map.current?.addLayer({
-						id: border.line.key,
-						type: "line",
-						source: border.source.key,
-						paint: {
-							"line-color": border.line.color,
-							"line-width": 3,
-							"line-opacity": 0.8,
-						},
-					});
-				}
-			});
-
-			totalLayers.forEach((layer) => {
-				// Add images for layers that have icons and are visible
-				const iconKey = layer.icon?.key;
-				const iconImage = layersData[layer.id].iconImage;
-				const hasImageAlready = iconKey && map.current?.hasImage(iconKey);
-				const shouldAddImage =
-					iconImage && iconKey && layer.visible && !hasImageAlready;
-				if (shouldAddImage) {
-					map.current?.addImage(iconKey, iconImage);
-				}
-
-				// Add sources for layers that have data and are visible
-				const hasSourceAlready =
-					layer.source.key && map.current?.getSource(layer.source.key);
-				const shouldAddSource =
-					layer.visible &&
-					layer.source.key &&
-					layersData[layer.id].data &&
-					!hasSourceAlready;
-				if (shouldAddSource) {
-					map.current?.addSource(layer.source.key, {
-						type: "geojson",
-						data: layersData[layer.id]
-							.data as unknown as GeoJSON.FeatureCollection,
-					});
-				}
-
-				// Add layers for layers that have data and are visible
-				const hasLayerAlready =
-					layer.layerKey && map.current?.getLayer(layer.layerKey);
-				const shouldAddLayer =
-					layer.visible &&
-					layer.layerKey &&
-					layersData[layer.id].data &&
-					!hasLayerAlready;
-				if (shouldAddLayer) {
-					map.current?.addLayer({
-						id: layer.layerKey,
-						type: "symbol",
-						source: layer.source.key,
-						layout: {
-							"icon-image": layer.icon?.key,
-							"icon-size": 0.4,
-							"icon-allow-overlap": true,
-							"icon-ignore-placement": true,
-						},
-					});
-				}
-
-				// Add label layers for layers that have data and are visible
-				const hasLabelLayerAlready =
-					layer.label.key && map.current?.getLayer(layer.label.key);
-				const shouldAddLabelLayer =
-					layer.visible &&
-					layer.label.key &&
-					layersData[layer.id].data &&
-					!hasLabelLayerAlready;
-				if (shouldAddLabelLayer) {
-					map.current?.addLayer({
-						id: layer.label.key,
-						type: "symbol",
-						source: layer.source.key,
-						layout: {
-							"text-field": ["get", layer.label.textField],
-							"text-offset": [0, 1.5],
-							"text-anchor": "top",
-							"text-size": ["interpolate", ["linear"], ["zoom"], 2, 11, 10, 18],
-							"text-allow-overlap": false,
-							"text-writing-mode": ["horizontal"],
-						},
-						paint: {
-							"text-color": layer.label.textColor,
-							"text-halo-color": isDarkMode ? "#FFFFFF" : "#000000",
-							"text-halo-width": 0.8,
-						},
-					});
-				}
-			});
-
-			// Mouse events for layers
-			totalLayers.forEach((layer) => {
-				if (!map.current?.getLayer(layer.layerKey)) return;
-
-				// Desktop events (hover)
-				map.current?.on("mouseenter", layer.layerKey, (e) => {
-					if (!map.current || isMobile()) return;
-
-					map.current.getCanvas().style.cursor = "pointer";
-
-					if (e.features?.[0]) {
-						const properties = e.features[0].properties;
-						const coordinates = (e.features[0].geometry as Point).coordinates;
-
-						// Add coordinates to properties for tooltip
-						// @ts-expect-error
-						const enrichedProperties: MapGeoJSONFeature &
-							Pick<LocationFeature, "geometry" | "coordinates"> = {
-							...properties,
-							geometry: e.features[0].geometry,
-							coordinates: coordinates,
-						};
-
-						onLocationHoverRef.current(
-							enrichedProperties as unknown as LocationProperties,
-							e.originalEvent as MouseEvent,
-						);
-					}
-				});
-
-				map.current?.on("mousemove", layer.layerKey, (e) => {
-					if (!map.current || isMobile()) return;
-					onMouseMoveRef.current(e.originalEvent as MouseEvent);
-				});
-
-				map.current?.on("mouseleave", layer.layerKey, (_e) => {
-					if (!map.current || isMobile()) return;
-
-					// Check if mouse is moving to tooltip
-					// const rect = map.current.getContainer().getBoundingClientRect();
-
-					// Small delay to allow moving to tooltip
-					setTimeout(() => {
-						const tooltipElement = document.querySelector("[data-tooltip]");
-						if (!tooltipElement || !tooltipElement.matches(":hover")) {
-							if (map.current) {
-								map.current.getCanvas().style.cursor = "";
-								onLocationHoverRef.current(null);
-							}
-						}
-					}, 2000);
-				});
-
-				// Mobile and Desktop click events
-				map.current?.on("click", layer.layerKey, (e) => {
-					if (!map.current || !e.features || !e.features[0]) return;
-
-					const properties = e.features[0].properties as LocationProperties;
-					const coordinates = (
-						e.features[0].geometry as Point
-					).coordinates.slice();
-
-					if (isMobile()) {
-						// Add coordinates to properties for tooltip
-						const enrichedProperties = {
-							...properties,
-							geometry: e.features[0].geometry,
-							coordinates: coordinates,
-						};
-
-						onLocationHoverRef.current(
-							enrichedProperties as unknown as LocationProperties,
-							e.originalEvent as MouseEvent,
-						);
-					}
-
-					map.current?.flyTo({
-						center: coordinates as LngLatLike,
-						zoom: 10,
-						duration: 1000,
-					});
-				});
-			});
-
-			// Mobile click-to-close tooltip
-			if (isMobile()) {
-				map.current.on("click", (e) => {
-					const features = map.current?.queryRenderedFeatures(e.point, {
-						layers: totalLayers.map((layer) => layer.layerKey),
-					});
-
-					if (features?.length === 0) {
-						onLocationHoverRef.current(null);
-					}
-				});
-			}
+			loadBorders();
+			loadLayers();
 
 			setIsLoading(false);
 		} catch (err) {
@@ -538,7 +543,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 				}, 2000);
 			}
 		}
-	}, [layersData, bordersData, isDarkMode, isMobile, retryCount, retryMapLoad]);
+	}, [isDarkMode, retryCount, retryMapLoad, loadBorders, loadLayers]);
 
 	const eraseMap = useCallback(() => {
 		if (!map.current) return;
@@ -615,6 +620,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 			map.current.on("load", () => {
 				setIsMapLoaded(true);
 			});
+			map.current.once("load", loadMap);
 
 			map.current.on("error", (e) => {
 				console.error("Map error:", e);
@@ -647,10 +653,6 @@ const MapComponent: React.FC<MapComponentProps> = ({
 					}, delay);
 				}
 			});
-
-			map.current.once("load", async () => {
-				await loadMap();
-			});
 		} catch (err) {
 			console.error("❌ Error loading map data:", err);
 			setError(
@@ -674,16 +676,6 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		retryCount,
 		retryMapLoad,
 	]);
-
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => {
-			if (map.current) {
-				map.current.remove();
-				map.current = null;
-			}
-		};
-	}, []);
 
 	// Update map style when theme changes
 	const themeBackup = useRef<boolean | null>(null);
