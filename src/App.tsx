@@ -11,6 +11,7 @@ import { borderIds } from "./map-entities/borders";
 import { BordersProvider } from "./map-entities/borders.context";
 import type { layerIds } from "./map-entities/layers";
 import { LayersProvider } from "./map-entities/layers.context";
+import { UserLocationProvider } from "./map-entities/user-location.context";
 import type { LocationProperties } from "./types";
 
 interface TooltipState {
@@ -27,10 +28,6 @@ function App() {
 	const [isFirstTimeWarning, setIsFirstTimeWarning] = useState(true);
 	const [isWarningExpanded, setIsWarningExpanded] = useState(false);
 	const [shouldZoomToEvac, setShouldZoomToEvac] = useState(false);
-	const [userLocation, setUserLocation] = useState<{
-		lat: number;
-		lng: number;
-	} | null>(null);
 
 	const handleLocationHover = useCallback(
 		(location: LocationProperties | null, mouseEvent?: MouseEvent) => {
@@ -103,13 +100,6 @@ function App() {
 		setIsDarkMode((prev) => !prev);
 	}, []);
 
-	const handleLocationFound = useCallback(
-		(coords: { lat: number; lng: number }) => {
-			setUserLocation(coords);
-		},
-		[],
-	);
-
 	return (
 		<div
 			className={`h-screen w-full relative overflow-hidden ${isDarkMode ? "bg-gray-900" : "bg-gray-100"}`}
@@ -117,36 +107,37 @@ function App() {
 			<Header />
 			<ThemeToggle isDarkMode={isDarkMode} onToggle={handleThemeToggle} />
 
-			<LayersProvider>
-				<BordersProvider>
-					<div className="h-full w-full">
-						<MapComponent
-							onLocationHover={handleLocationHover}
-							onMouseMove={handleMouseMove}
-							isDarkMode={isDarkMode}
-							shouldZoomToEvac={shouldZoomToEvac}
-							userLocation={userLocation}
-						/>
-					</div>
+			<UserLocationProvider>
+				<LayersProvider>
+					<BordersProvider>
+						<div className="h-full w-full">
+							<MapComponent
+								onLocationHover={handleLocationHover}
+								onMouseMove={handleMouseMove}
+								isDarkMode={isDarkMode}
+								shouldZoomToEvac={shouldZoomToEvac}
+							/>
+						</div>
 
-					<Legend
-						isVisible={warningBoxVisible}
-						onClose={handleCloseWarningBox}
-						isCompact={!isFirstTimeWarning && !isWarningExpanded}
-						onExpand={handleExpandWarning}
-					/>
-					<LayerFilter onLayerToggle={handleLayerToggle} />
-					<LocateButton
-						onLocationFound={handleLocationFound}
-						isDarkMode={isDarkMode}
-					/>
-					<ProximityAlert userLocation={userLocation} />
-					<LocationTooltip
-						tooltipState={tooltipState}
-						onClose={() => setTooltipState(null)}
-					/>
-				</BordersProvider>
-			</LayersProvider>
+						<Legend
+							isVisible={warningBoxVisible}
+							onClose={handleCloseWarningBox}
+							isCompact={!isFirstTimeWarning && !isWarningExpanded}
+							onExpand={handleExpandWarning}
+						/>
+						<LayerFilter
+							isDarkMode={isDarkMode}
+							onLayerToggle={handleLayerToggle}
+						/>
+						<LocateButton isDarkMode={isDarkMode} />
+						<ProximityAlert />
+						<LocationTooltip
+							tooltipState={tooltipState}
+							onClose={() => setTooltipState(null)}
+						/>
+					</BordersProvider>
+				</LayersProvider>
+			</UserLocationProvider>
 
 			{/* Instructions overlay for mobile */}
 			<div className="absolute bottom-6 right-6 md:hidden bg-black/60 backdrop-blur-sm rounded-lg p-3 text-white text-xs max-w-48">

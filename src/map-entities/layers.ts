@@ -49,7 +49,7 @@ export const totalLayers: Layer[] = [
 	},
 	{
 		type: "layer",
-		id: layerIds.sites as keyof typeof layerIds,
+		id: layerIds.sites,
 		layerKey: `${layerIds.sites}-layer`,
 		name: "پایگاه‌های موشکی",
 		label: {

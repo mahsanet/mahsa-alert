@@ -8,10 +8,10 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { BordersDataRefProvider } from "./border.context.ref";
+import type { BordersData } from "./border.context.types";
+import { getFetchBorderDataPromise, initialBordersData } from "./border.utils";
 import { type Border, type borderIds, totalBorders } from "./borders";
-import { BordersDataRefProvider } from "./borders.context.ref";
-import type { BordersData } from "./borders.context.types";
-import { getFetchBorderDataPromise, initialBordersData } from "./borders.utils";
 
 interface BordersContextType {
 	borders: Border[];
