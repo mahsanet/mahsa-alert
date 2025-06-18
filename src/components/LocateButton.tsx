@@ -186,7 +186,7 @@ const LocateButton: React.FC<LocateButtonProps> = ({ isDarkMode }) => {
 								? "bg-blue-600 hover:bg-blue-700 text-white border-blue-500"
 								: isDarkMode
 									? "bg-gray-800 hover:bg-gray-700 text-white border-gray-600"
-									: "bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
+									: "bg-white hover:bg-gray-300 text-gray-700 border-gray-300"
 						}
 						${isRequestingLocation ? "opacity-75 cursor-not-allowed" : ""}
 					`}
