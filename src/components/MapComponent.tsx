@@ -5,19 +5,17 @@ import maplibregl, {
 	type MapGeoJSONFeature,
 } from "maplibre-gl";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useBordersDataRef } from "../map-entities/border.context.ref";
 import { totalBorders } from "../map-entities/borders";
 import { useBorders } from "../map-entities/borders.context";
+import { cartoConfig } from "../map-entities/carto";
 import { totalLayers } from "../map-entities/layers";
 import { useLayers } from "../map-entities/layers.context";
 import { useUserLocation } from "../map-entities/user-location.context";
-import type {
-	LocationDataType,
-	LocationFeature,
-	LocationProperties,
-} from "../types";
+import type { LocationFeature, LocationProperties } from "../types";
+import { calculateBounds } from "./MapComponent.utils";
 
 interface MapComponentProps {
 	onLocationHover: (
@@ -29,46 +27,9 @@ interface MapComponentProps {
 	shouldZoomToEvac?: boolean;
 }
 
-// Function to calculate bounds for GeoJSON data
-const calculateBounds = (
-	geoJsonData: LocationDataType,
-): [[number, number], [number, number]] | null => {
-	if (!geoJsonData?.features?.length) return null;
-
-	let minLng = Number.POSITIVE_INFINITY;
-	let minLat = Number.POSITIVE_INFINITY;
-	let maxLng = Number.NEGATIVE_INFINITY;
-	let maxLat = Number.NEGATIVE_INFINITY;
-
-	geoJsonData.features.forEach((feature) => {
-		if ("coordinates" in feature.geometry && feature.geometry.coordinates) {
-			const coords = feature.geometry.coordinates;
-
-			if (feature.geometry.type === "Polygon" && Array.isArray(coords[0])) {
-				coords[0].forEach((coord) => {
-					const [lng, lat] = coord as [number, number];
-					minLng = Math.min(minLng, lng);
-					maxLng = Math.max(maxLng, lng);
-					minLat = Math.min(minLat, lat);
-					maxLat = Math.max(maxLat, lat);
-				});
-			} else if (feature.geometry.type === "Point") {
-				const [lng, lat] = coords as [number, number];
-				minLng = Math.min(minLng, lng);
-				maxLng = Math.max(maxLng, lng);
-				minLat = Math.min(minLat, lat);
-				maxLat = Math.max(maxLat, lat);
-			}
-		}
-	});
-
-	if (minLng === Number.POSITIVE_INFINITY) return null;
-
-	return [
-		[minLng, minLat],
-		[maxLng, maxLat],
-	];
-};
+const maxDelay = 3000;
+const retryLimit = 5;
+const getDelay = (retryCount: number) => Math.min(1000 * retryCount, maxDelay);
 
 const MapComponent: React.FC<MapComponentProps> = ({
 	onLocationHover,
@@ -90,11 +51,10 @@ const MapComponent: React.FC<MapComponentProps> = ({
 	const [isMapLoaded, setIsMapLoaded] = useState(false);
 	const [retryCount, setRetryCount] = useState(0);
 	const [isRetrying, setIsRetrying] = useState(false);
+	const isMobile = useMemo(() => window.innerWidth < 768, []);
 
 	const onLocationHoverRef = useRef(onLocationHover);
 	const onMouseMoveRef = useRef(onMouseMove);
-
-	const isMobile = useCallback(() => window.innerWidth < 768, []);
 
 	// Cleanup on unmount
 	useEffect(() => {
@@ -186,13 +146,38 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		}
 	}, [shouldZoomToEvac, bordersDataRef]);
 
-	const loadUserLocation = useCallback(() => {
+	const loadCartoLayer = useCallback(() => {
+		if (!map.current) return;
+
+		map.current.addSource(cartoConfig.sourceKey, {
+			type: "raster",
+			tiles: cartoConfig.tiles(isDarkMode),
+			tileSize: cartoConfig.tileSize,
+			attribution: cartoConfig.attribution,
+		});
+
+		map.current.addLayer({
+			id: cartoConfig.layerKey,
+			type: "raster",
+			source: cartoConfig.sourceKey,
+			minzoom: 0,
+			maxzoom: 20,
+		});
+	}, [isDarkMode]);
+
+	const toggleUserLocation = useCallback(() => {
 		if (!map.current) return;
 
 		if (!userLocationData || !userLocation) {
-			map.current.removeLayer(userLocationConfig.circleKey);
-			map.current.removeLayer(userLocationConfig.accuracyKey);
-			map.current.removeSource(userLocationConfig.sourceKey);
+			if (map.current.getLayer(userLocationConfig.circleKey)) {
+				map.current.removeLayer(userLocationConfig.circleKey);
+			}
+			if (map.current.getLayer(userLocationConfig.accuracyKey)) {
+				map.current.removeLayer(userLocationConfig.accuracyKey);
+			}
+			if (map.current.getSource(userLocationConfig.sourceKey)) {
+				map.current.removeSource(userLocationConfig.sourceKey);
+			}
 			return;
 		}
 
@@ -246,8 +231,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		});
 	}, [userLocation, userLocationData, userLocationConfig]);
 	useEffect(() => {
-		loadUserLocation();
-	}, [loadUserLocation]);
+		toggleUserLocation();
+	}, [toggleUserLocation]);
 
 	const loadBorders = useCallback(() => {
 		if (!map.current || !isLayersDataLoaded) return;
@@ -384,7 +369,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
 			// Desktop events (hover)
 			map.current?.on("mouseenter", layer.layerKey, (e) => {
-				if (!map.current || isMobile()) return;
+				if (!map.current || isMobile) return;
 
 				map.current.getCanvas().style.cursor = "pointer";
 
@@ -409,12 +394,12 @@ const MapComponent: React.FC<MapComponentProps> = ({
 			});
 
 			map.current?.on("mousemove", layer.layerKey, (e) => {
-				if (!map.current || isMobile()) return;
+				if (!map.current || isMobile) return;
 				onMouseMoveRef.current(e.originalEvent as MouseEvent);
 			});
 
 			map.current?.on("mouseleave", layer.layerKey, (_e) => {
-				if (!map.current || isMobile()) return;
+				if (!map.current || isMobile) return;
 
 				// Check if mouse is moving to tooltip
 				// const rect = map.current.getContainer().getBoundingClientRect();
@@ -440,7 +425,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 					e.features[0].geometry as Point
 				).coordinates.slice();
 
-				if (isMobile()) {
+				if (isMobile) {
 					// Add coordinates to properties for tooltip
 					const enrichedProperties = {
 						...properties,
@@ -463,7 +448,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		});
 
 		// Mobile click-to-close tooltip
-		if (isMobile()) {
+		if (isMobile) {
 			map.current.on("click", (e) => {
 				const features = map.current?.queryRenderedFeatures(e.point, {
 					layers: totalLayers.map((layer) => layer.layerKey),
@@ -476,6 +461,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		}
 	}, [isMobile, isLayersDataLoaded, isDarkMode, layersData]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: we really need to re-load the map when the user location changes
 	const loadMap = useCallback(async () => {
 		if (!map.current || !map.current.isStyleLoaded()) return;
 
@@ -487,38 +473,10 @@ const MapComponent: React.FC<MapComponentProps> = ({
 				isDarkMode ? "#242f3e" : "#f8f9fa",
 			);
 
-			// Add new base layer with fallback servers
-			map.current.addSource("carto-layer", {
-				type: "raster",
-				tiles: isDarkMode
-					? [
-							"https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
-							"https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
-							"https://cartodb-basemaps-c.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
-							"https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-							"https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-						]
-					: [
-							"https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-							"https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-							"https://cartodb-basemaps-c.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-							"https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-							"https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-						],
-				tileSize: 256,
-				attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-			});
-
-			map.current.addLayer({
-				id: "carto-layer",
-				type: "raster",
-				source: "carto-layer",
-				minzoom: 0,
-				maxzoom: 20,
-			});
-
+			loadCartoLayer();
 			loadBorders();
 			loadLayers();
+			toggleUserLocation();
 
 			setIsLoading(false);
 		} catch (err) {
@@ -528,26 +486,35 @@ const MapComponent: React.FC<MapComponentProps> = ({
 					(err instanceof Error ? err.message : "خطای نامشخص"),
 			);
 			setIsLoading(false);
+			if (retryCount < retryLimit) {
+				const delay = getDelay(retryCount);
 
-			// Auto retry data loading up to 2 times
-			if (retryCount < 2) {
 				setTimeout(() => {
 					retryMapLoad();
-				}, 2000);
+				}, delay);
 			}
 		}
-	}, [isDarkMode, retryCount, retryMapLoad, loadBorders, loadLayers]);
+	}, [
+		isDarkMode,
+		retryCount,
+		retryMapLoad,
+		userLocation,
+		loadBorders,
+		loadLayers,
+		toggleUserLocation,
+	]);
 
 	const eraseMap = useCallback(() => {
 		if (!map.current) return;
 
 		try {
 			// Remove all existing layers and sources
-			const layers = [
-				"user-location-circle",
-				"user-location-accuracy",
-				"carto-layer",
-			]
+			const layers = [cartoConfig.layerKey as string]
+				.concat(
+					!userLocation
+						? []
+						: [userLocationConfig.circleKey, userLocationConfig.accuracyKey],
+				)
 				.concat(
 					totalLayers
 						.flatMap((layer) => [
@@ -561,7 +528,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
 					totalBorders.flatMap((border) => [border.fill.key, border.line.key]),
 				);
 
-			const sources = ["user-location", "carto-layer"]
+			const sources = [cartoConfig.sourceKey as string]
+				.concat(!userLocation ? [] : [userLocationConfig.sourceKey])
 				.concat(totalLayers.map((layer) => layer.source.key))
 				.concat(totalBorders.map((border) => border.source.key));
 
@@ -579,7 +547,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		} catch (err) {
 			console.error("❌ Error erasing map:", err);
 		}
-	}, []);
+	}, [userLocation, userLocationConfig]);
 
 	// Initialize map
 	useEffect(() => {
@@ -618,29 +586,11 @@ const MapComponent: React.FC<MapComponentProps> = ({
 			map.current.on("error", (e) => {
 				console.error("Map error:", e);
 
-				// Check if it's a tile loading error (usually temporary)
-				if (
-					e.error?.message?.includes("Failed to fetch") ||
-					e.error?.message?.includes("AJAXError")
-				) {
-					console.warn("Tile loading error, retrying...", e.error?.message);
-
-					// For tile errors, retry more aggressively but silently
-					if (retryCount < 5) {
-						const delay = Math.min(500 * 1.5 ** retryCount, 3000);
-						setTimeout(() => {
-							retryMapLoad();
-						}, delay);
-						return;
-					}
-				}
-
 				setError(`خطا در بارگذاری نقشه: ${e.error?.message || "خطای نامشخص"}`);
 				setIsLoading(false);
 
-				// Auto retry up to 3 times for other errors
-				if (retryCount < 3) {
-					const delay = Math.min(1000 * 2 ** retryCount, 5000); // exponential backoff, max 5s
+				if (retryCount < retryLimit) {
+					const delay = getDelay(retryCount);
 					setTimeout(() => {
 						retryMapLoad();
 					}, delay);
@@ -654,11 +604,12 @@ const MapComponent: React.FC<MapComponentProps> = ({
 			);
 			setIsLoading(false);
 
-			// Auto retry data loading up to 2 times
-			if (retryCount < 2) {
+			if (retryCount < retryLimit) {
+				const delay = getDelay(retryCount);
+
 				setTimeout(() => {
 					retryMapLoad();
-				}, 2000);
+				}, delay);
 			}
 		}
 	}, [
@@ -680,78 +631,11 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		try {
 			eraseMap();
 			loadMap();
-
-			// Re-add user location if it exists
-			if (userLocation) {
-				const userLocationGeoJSON = {
-					type: "FeatureCollection" as const,
-					features: [
-						{
-							type: "Feature" as const,
-							properties: {
-								name: "موقعیت من",
-								accuracy: "بالا",
-							},
-							geometry: {
-								type: "Point" as const,
-								coordinates: [userLocation.lng, userLocation.lat],
-							},
-						},
-					],
-				};
-
-				map.current.addSource("user-location", {
-					type: "geojson",
-					data: userLocationGeoJSON,
-				});
-
-				map.current.addLayer({
-					id: "user-location-circle",
-					type: "circle",
-					source: "user-location",
-					paint: {
-						"circle-radius": [
-							"interpolate",
-							["linear"],
-							["zoom"],
-							3,
-							8,
-							10,
-							16,
-						],
-						"circle-color": "#4285f4",
-						"circle-stroke-width": 3,
-						"circle-stroke-color": "#ffffff",
-						"circle-opacity": 0.8,
-					},
-				});
-
-				map.current.addLayer({
-					id: "user-location-accuracy",
-					type: "circle",
-					source: "user-location",
-					paint: {
-						"circle-radius": [
-							"interpolate",
-							["linear"],
-							["zoom"],
-							3,
-							20,
-							10,
-							40,
-						],
-						"circle-color": "#4285f4",
-						"circle-opacity": 0.1,
-						"circle-stroke-width": 1,
-						"circle-stroke-color": "#4285f4",
-						"circle-stroke-opacity": 0.3,
-					},
-				});
-			}
 		} catch (error) {
 			console.error("Error updating map style:", error);
+			retryMapLoad();
 		}
-	}, [isDarkMode, isMapLoaded, userLocation, loadMap, eraseMap]);
+	}, [isDarkMode, isMapLoaded, loadMap, eraseMap, retryMapLoad]);
 
 	useEffect(() => {
 		themeBackup.current = isDarkMode;
