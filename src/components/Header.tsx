@@ -22,13 +22,6 @@ const Header: React.FC = () => {
 							<p className="text-blue-200 text-sm">©2025 MahsaNet</p>
 						</div>
 					</div>
-
-					{/*<div className="hidden md:flex items-center space-x-6 text-white/80">*/}
-					{/*  <div className="flex items-center space-x-2">*/}
-					{/*    <Navigation className="w-4 h-4" />*/}
-					{/*    <span className="text-sm">بر روی آیکون‌ها</span>*/}
-					{/*  </div>*/}
-					{/*</div>*/}
 				</div>
 			</div>
 		</div>
