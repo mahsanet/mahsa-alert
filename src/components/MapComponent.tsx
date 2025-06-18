@@ -7,14 +7,16 @@ import maplibregl, {
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { useBordersDataRef } from "../map-entities/border.context.ref";
+import { totalBorders } from "../map-entities/borders";
+import { useBorders } from "../map-entities/borders.context";
+import { totalLayers } from "../map-entities/layers";
 import { useLayers } from "../map-entities/layers.context";
-import { useLayersDataRef } from "../map-entities/layers.context.ref";
 import type {
 	LocationDataType,
 	LocationFeature,
 	LocationProperties,
 } from "../types";
-import { loadPngAsImage } from "../utils/loadPngAsImage";
 
 interface MapComponentProps {
 	onLocationHover: (
@@ -75,13 +77,14 @@ const MapComponent: React.FC<MapComponentProps> = ({
 	isDarkMode,
 	shouldZoomToEvac,
 	userLocation,
-	onDataSourcesLoad,
 }) => {
-	const { layers } = useLayers();
-	const layersDataRef = useLayersDataRef();
+	const { layers, layersData, isLayersDataLoaded } = useLayers();
+	const { borders, bordersData, isBordersDataLoaded } = useBorders();
+	const bordersDataRef = useBordersDataRef();
 
 	const mapContainer = useRef<HTMLDivElement>(null);
 	const map = useRef<maplibregl.Map | null>(null);
+
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [isMapLoaded, setIsMapLoaded] = useState(false);
@@ -90,6 +93,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
 	const onLocationHoverRef = useRef(onLocationHover);
 	const onMouseMoveRef = useRef(onMouseMove);
+
+	const isMobile = useCallback(() => window.innerWidth < 768, []);
 
 	// Store the data sources for re-adding after theme switch
 	const dataSourcesRef = useRef<{
@@ -132,25 +137,47 @@ const MapComponent: React.FC<MapComponentProps> = ({
 	useEffect(() => {
 		if (!map.current) return;
 
-		layers.forEach(({ visible, mapIds }) => {
-			mapIds.forEach((mapId) => {
-				if (map.current?.getLayer(mapId)) {
-					map.current?.setLayoutProperty(
-						mapId,
-						"visibility",
-						visible ? "visible" : "none",
-					);
-				}
-			});
+		layers.forEach(({ visible, layerKey, label }) => {
+			if (map.current?.getLayer(layerKey)) {
+				map.current?.setLayoutProperty(
+					layerKey,
+					"visibility",
+					visible ? "visible" : "none",
+				);
+			}
+			if (map.current?.getLayer(label.key)) {
+				map.current?.setLayoutProperty(
+					label.key,
+					"visibility",
+					visible ? "visible" : "none",
+				);
+			}
 		});
-	}, [layers]);
+
+		borders.forEach(({ visible, fill, line }) => {
+			if (map.current?.getLayer(fill.key)) {
+				map.current?.setLayoutProperty(
+					fill.key,
+					"visibility",
+					visible ? "visible" : "none",
+				);
+			}
+			if (map.current?.getLayer(line.key)) {
+				map.current?.setLayoutProperty(
+					line.key,
+					"visibility",
+					visible ? "visible" : "none",
+				);
+			}
+		});
+	}, [layers, borders]);
 
 	// Zoom to evacuation area when shouldZoomToEvac is true
 	useEffect(() => {
-		if (!map.current || !shouldZoomToEvac || !layersDataRef.current.evac.data)
+		if (!map.current || !shouldZoomToEvac || !bordersDataRef.current.evac.data)
 			return;
 
-		const bounds = calculateBounds(layersDataRef.current.evac.data);
+		const bounds = calculateBounds(bordersDataRef.current.evac.data);
 		if (bounds) {
 			map.current.fitBounds(bounds, {
 				padding: 10,
@@ -158,7 +185,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 				maxZoom: 13,
 			});
 		}
-	}, [shouldZoomToEvac, layersDataRef.current.evac.data]);
+	}, [shouldZoomToEvac, bordersDataRef]);
 
 	// Update user location marker
 	useEffect(() => {
@@ -230,606 +257,10 @@ const MapComponent: React.FC<MapComponentProps> = ({
 		});
 	}, [userLocation]);
 
-	// Initialize map
-	useEffect(() => {
-		if (map.current) return;
-		if (!mapContainer.current) return;
+	const loadMap = useCallback(async () => {
+		if (!map.current || !map.current.isStyleLoaded()) return;
 
 		try {
-			map.current = new maplibregl.Map({
-				container: mapContainer.current,
-				style: {
-					version: 8,
-					glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-					sources: {
-						"carto-dark": {
-							type: "raster",
-							tiles: [
-								"https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
-								"https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
-								"https://cartodb-basemaps-c.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
-								"https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-								"https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-							],
-							tileSize: 256,
-							attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-						},
-						"carto-light": {
-							type: "raster",
-							tiles: [
-								"https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-								"https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-								"https://cartodb-basemaps-c.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-								"https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-								"https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-							],
-							tileSize: 256,
-							attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-						},
-					},
-					layers: [
-						{
-							id: "background",
-							type: "background",
-							paint: {
-								"background-color": isDarkMode ? "#242f3e" : "#f8f9fa",
-							},
-						},
-						{
-							id: "carto-layer",
-							type: "raster",
-							source: isDarkMode ? "carto-dark" : "carto-light",
-							minzoom: 0,
-							maxzoom: 20,
-						},
-					],
-				},
-				center: [53.688, 32.4279],
-				zoom: 4.7,
-				pitch: 0,
-				bearing: 0,
-			});
-
-			map.current.on("load", () => {
-				setIsMapLoaded(true);
-				setIsLoading(false);
-			});
-
-			map.current.on("error", (e) => {
-				console.error("Map error:", e);
-
-				// Check if it's a tile loading error (usually temporary)
-				if (
-					e.error?.message?.includes("Failed to fetch") ||
-					e.error?.message?.includes("AJAXError")
-				) {
-					console.warn("Tile loading error, retrying...", e.error?.message);
-
-					// For tile errors, retry more aggressively but silently
-					if (retryCount < 5) {
-						const delay = Math.min(500 * 1.5 ** retryCount, 3000);
-						setTimeout(() => {
-							retryMapLoad();
-						}, delay);
-						return;
-					}
-				}
-
-				setError(`خطا در بارگذاری نقشه: ${e.error?.message || "خطای نامشخص"}`);
-				setIsLoading(false);
-
-				// Auto retry up to 3 times for other errors
-				if (retryCount < 3) {
-					const delay = Math.min(1000 * 2 ** retryCount, 5000); // exponential backoff, max 5s
-					setTimeout(() => {
-						retryMapLoad();
-					}, delay);
-				}
-			});
-
-			map.current.once("load", async () => {
-				if (!map.current || !map.current.isStyleLoaded()) return;
-
-				try {
-					// Add images only if they don't exist
-					if (!map.current.hasImage("nuclear-icon")) {
-						const image = await loadPngAsImage("/assets/symbols/nuclear.png");
-						if (image) {
-							map.current.addImage("nuclear-icon", image);
-						}
-					}
-					if (!map.current.hasImage("missile-base-icon")) {
-						const image = await loadPngAsImage("/assets/symbols/missile.png");
-						if (image) {
-							map.current.addImage("missile-base-icon", image);
-						}
-					}
-					if (!map.current.hasImage("explosion-icon")) {
-						const image = await loadPngAsImage("/assets/symbols/explosion.png");
-						if (image) {
-							map.current.addImage("explosion-icon", image);
-						}
-					}
-
-					// Load data sources
-					let strikesResponse: Response;
-					let sitesResponse: Response;
-					let iranBorderResponse: Response;
-					let nuclearFacilitiesResponse: Response;
-					let evacResponse: Response;
-
-					try {
-						[
-							strikesResponse,
-							sitesResponse,
-							iranBorderResponse,
-							nuclearFacilitiesResponse,
-							evacResponse,
-						] = await Promise.all([
-							fetch("/sources/strikes.geojson"),
-							fetch("/sources/missile-bases.geojson"),
-							fetch("/sources/iran-border.geojson"),
-							fetch("/sources/nuclear-facilities.geojson"),
-							fetch("/sources/evac-area-jun-16.geojson"),
-						]);
-						// eslint-disable-next-line @typescript-eslint/no-unused-vars
-					} catch (_error) {
-						[
-							strikesResponse,
-							sitesResponse,
-							iranBorderResponse,
-							nuclearFacilitiesResponse,
-							evacResponse,
-						] = await Promise.all([
-							fetch("/sources/strikes.geojson"),
-							fetch("/sources/missile-bases.geojson"),
-							fetch("/sources/iran-border.geojson"),
-							fetch("/sources/nuclear-facilities.geojson"),
-							fetch("/sources/evac-area-jun-16.geojson"),
-						]);
-					}
-
-					const [
-						strikesGeoJSON,
-						sitesGeoJSON,
-						iranBorderData,
-						nuclearFacilitiesGeoJSON,
-						evacDataGeoJSON,
-					] = await Promise.all([
-						strikesResponse.json(),
-						sitesResponse.json(),
-						iranBorderResponse.json(),
-						nuclearFacilitiesResponse.json(),
-						evacResponse.json(),
-					]);
-
-					// Store the data sources for later use
-					dataSourcesRef.current = {
-						strikes: strikesGeoJSON,
-						sites: sitesGeoJSON,
-						iranBorder: iranBorderData,
-						nuclear: nuclearFacilitiesGeoJSON,
-						evac: evacDataGeoJSON,
-					};
-
-					// Notify parent component about data sources
-					if (onDataSourcesLoad) {
-						onDataSourcesLoad({
-							strikes: strikesGeoJSON,
-							sites: sitesGeoJSON,
-							nuclear: nuclearFacilitiesGeoJSON,
-						});
-					}
-
-					// Add sources only if they don't exist
-					if (!map.current.getSource("strikes")) {
-						map.current.addSource("strikes", {
-							type: "geojson",
-							data: strikesGeoJSON,
-						});
-					}
-
-					if (!map.current.getSource("nuclear-source")) {
-						map.current.addSource("nuclear-source", {
-							type: "geojson",
-							data: nuclearFacilitiesGeoJSON,
-						});
-					}
-
-					if (!map.current.getSource("sites")) {
-						map.current.addSource("sites", {
-							type: "geojson",
-							data: sitesGeoJSON,
-						});
-					}
-
-					if (!map.current.getSource("iran-border")) {
-						map.current.addSource("iran-border", {
-							type: "geojson",
-							data: iranBorderData,
-						});
-					}
-
-					if (!map.current.getSource("evac")) {
-						map.current.addSource("evac", {
-							type: "geojson",
-							data: evacDataGeoJSON,
-						});
-					}
-
-					// Add layers only if they don't exist
-					if (!map.current.getLayer("iran-border-fill")) {
-						map.current.addLayer({
-							id: "iran-border-fill",
-							type: "fill",
-							source: "iran-border",
-							paint: {
-								"fill-color": "rgba(255, 0, 0, 0.1)",
-								"fill-opacity": 0.2,
-							},
-						});
-					}
-
-					if (!map.current.getLayer("iran-border-line")) {
-						map.current.addLayer({
-							id: "iran-border-line",
-							type: "line",
-							source: "iran-border",
-							paint: {
-								"line-color": "#FF0000",
-								"line-width": 3,
-								"line-opacity": 0.8,
-							},
-						});
-					}
-
-					if (!map.current.getLayer("nuclear-layer")) {
-						map.current.addLayer({
-							id: "nuclear-layer",
-							type: "symbol",
-							source: "nuclear-source",
-							layout: {
-								"icon-image": "nuclear-icon",
-								"icon-size": 0.4,
-								"icon-allow-overlap": true,
-								"icon-ignore-placement": true,
-							},
-						});
-					}
-
-					if (!map.current.getLayer("strikes-layer")) {
-						map.current.addLayer({
-							id: "strikes-layer",
-							type: "symbol",
-							source: "strikes",
-							layout: {
-								"icon-image": "explosion-icon",
-								"icon-size": 0.4,
-								"icon-allow-overlap": true,
-								"icon-ignore-placement": true,
-							},
-						});
-					}
-
-					if (!map.current.getLayer("sites-layer")) {
-						map.current.addLayer({
-							id: "sites-layer",
-							type: "symbol",
-							source: "sites",
-							layout: {
-								"icon-image": "missile-base-icon",
-								"icon-size": 0.4,
-								"icon-allow-overlap": true,
-								"icon-ignore-placement": true,
-							},
-						});
-					}
-
-					if (!map.current.getLayer("evac-fill")) {
-						map.current.addLayer({
-							id: "evac-fill",
-							type: "fill",
-							source: "evac",
-							paint: {
-								"fill-color": "#ff0000",
-								"fill-opacity": 0.2,
-							},
-						});
-					}
-
-					if (!map.current.getLayer("evac-line")) {
-						map.current.addLayer({
-							id: "evac-line",
-							type: "line",
-							source: "evac",
-							paint: {
-								"line-color": "#ff0000",
-								"line-width": 2,
-								"line-opacity": 0.8,
-								"line-dasharray": [4, 2],
-							},
-						});
-					}
-
-					// Add text layers only if they don't exist
-					if (!map.current.getLayer("strikes-label")) {
-						map.current.addLayer({
-							id: "strikes-label",
-							type: "symbol",
-							source: "strikes",
-							layout: {
-								"text-field": ["get", "SiteTargeted"],
-								"text-offset": [0, 1.5],
-								"text-anchor": "top",
-								"text-size": [
-									"interpolate",
-									["linear"],
-									["zoom"],
-									2,
-									11,
-									10,
-									16,
-								],
-								"text-allow-overlap": false,
-								"text-writing-mode": ["horizontal"],
-							},
-							paint: {
-								"text-color": "#ff9100",
-								"text-halo-color": isDarkMode ? "#000000" : "#333333",
-								"text-halo-width": 2,
-							},
-						});
-					}
-
-					if (!map.current.getLayer("nuclear-label")) {
-						map.current.addLayer({
-							id: "nuclear-label",
-							type: "symbol",
-							source: "nuclear-source",
-							layout: {
-								"text-field": ["get", "Site"],
-								"text-offset": [0, 1.5],
-								"text-anchor": "top",
-								"text-size": [
-									"interpolate",
-									["linear"],
-									["zoom"],
-									2,
-									11,
-									10,
-									16,
-								],
-								"text-allow-overlap": false,
-								"text-writing-mode": ["horizontal"],
-							},
-							paint: {
-								"text-color": "#ff9100",
-								"text-halo-color": isDarkMode ? "#000000" : "#333333",
-								"text-halo-width": 2,
-							},
-						});
-					}
-
-					if (!map.current.getLayer("sites-label")) {
-						map.current.addLayer({
-							id: "sites-label",
-							type: "symbol",
-							source: "sites",
-							layout: {
-								"text-field": ["get", "BASES_CLUSTER"],
-								"text-offset": [0, 1.5],
-								"text-anchor": "top",
-								"text-size": [
-									"interpolate",
-									["linear"],
-									["zoom"],
-									2,
-									12,
-									10,
-									18,
-								],
-								"text-allow-overlap": false,
-								"text-writing-mode": ["horizontal"],
-							},
-							paint: {
-								"text-color": "#FFFFFF",
-								"text-halo-color": isDarkMode ? "#000000" : "#333333",
-								"text-halo-width": 2,
-							},
-						});
-					}
-
-					const isMobile = () => window.innerWidth < 768;
-
-					["strikes-layer", "sites-layer", "nuclear-layer"].forEach(
-						(layerId) => {
-							if (!map.current?.getLayer(layerId)) return;
-
-							// Desktop events (hover)
-							map.current?.on("mouseenter", layerId, (e) => {
-								if (!map.current || isMobile()) return;
-
-								map.current.getCanvas().style.cursor = "pointer";
-
-								if (e.features?.[0]) {
-									const properties = e.features[0].properties;
-									const coordinates = (e.features[0].geometry as Point)
-										.coordinates;
-
-									// Add coordinates to properties for tooltip
-									// @ts-expect-error
-									const enrichedProperties: MapGeoJSONFeature &
-										Pick<LocationFeature, "geometry" | "coordinates"> = {
-										...properties,
-										geometry: e.features[0].geometry,
-										coordinates: coordinates,
-									};
-
-									onLocationHoverRef.current(
-										enrichedProperties as unknown as LocationProperties,
-										e.originalEvent as MouseEvent,
-									);
-								}
-							});
-
-							map.current?.on("mousemove", layerId, (e) => {
-								if (!map.current || isMobile()) return;
-								onMouseMoveRef.current(e.originalEvent as MouseEvent);
-							});
-
-							map.current?.on("mouseleave", layerId, (_e) => {
-								if (!map.current || isMobile()) return;
-
-								// Check if mouse is moving to tooltip
-								// const rect = map.current.getContainer().getBoundingClientRect();
-
-								// Small delay to allow moving to tooltip
-								setTimeout(() => {
-									const tooltipElement =
-										document.querySelector("[data-tooltip]");
-									if (!tooltipElement || !tooltipElement.matches(":hover")) {
-										if (map.current) {
-											map.current.getCanvas().style.cursor = "";
-											onLocationHoverRef.current(null);
-										}
-									}
-								}, 2000);
-							});
-
-							// Mobile and Desktop click events
-							map.current?.on("click", layerId, (e) => {
-								if (!map.current || !e.features || !e.features[0]) return;
-
-								const properties = e.features[0]
-									.properties as LocationProperties;
-								const coordinates = (
-									e.features[0].geometry as Point
-								).coordinates.slice();
-
-								if (isMobile()) {
-									// Add coordinates to properties for tooltip
-									const enrichedProperties = {
-										...properties,
-										geometry: e.features[0].geometry,
-										coordinates: coordinates,
-									};
-
-									onLocationHoverRef.current(
-										enrichedProperties as unknown as LocationProperties,
-										e.originalEvent as MouseEvent,
-									);
-								}
-
-								map.current?.flyTo({
-									center: coordinates as LngLatLike,
-									zoom: 10,
-									duration: 1000,
-								});
-							});
-						},
-					);
-
-					// Mobile click-to-close tooltip
-					if (isMobile()) {
-						map.current.on("click", (e) => {
-							const features = map.current?.queryRenderedFeatures(e.point, {
-								layers: ["strikes-layer", "sites-layer", "nuclear-layer"],
-							});
-
-							if (features?.length === 0) {
-								onLocationHoverRef.current(null);
-							}
-						});
-					}
-				} catch (err) {
-					console.error("❌ Error loading map data:", err);
-					setError(
-						"خطا در بارگذاری داده‌های نقشه: " +
-							(err instanceof Error ? err.message : "خطای نامشخص"),
-					);
-					setIsLoading(false);
-
-					// Auto retry data loading up to 2 times
-					if (retryCount < 2) {
-						setTimeout(() => {
-							retryMapLoad();
-						}, 2000);
-					}
-				}
-			});
-		} catch (error) {
-			console.error("Error initializing map:", error);
-			setError(
-				"خطا در راه‌اندازی نقشه: " +
-					(error instanceof Error ? error.message : "خطای نامشخص"),
-			);
-			setIsLoading(false);
-
-			// Auto retry initialization up to 2 times
-			if (retryCount < 2) {
-				setTimeout(() => {
-					retryMapLoad();
-				}, 2000);
-			}
-		}
-	}, [isDarkMode, retryCount, onDataSourcesLoad, retryMapLoad]);
-
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => {
-			if (map.current) {
-				map.current.remove();
-				map.current = null;
-			}
-		};
-	}, []);
-
-	// Update map style when theme changes
-	useEffect(() => {
-		if (!map.current || !isMapLoaded) return;
-
-		try {
-			// Store current data sources before removing them
-			const dataSources = dataSourcesRef.current;
-
-			// Remove all existing layers and sources
-			const layers = [
-				"iran-border-fill",
-				"iran-border-line",
-				"strikes-layer",
-				"strikes-label",
-				"nuclear-layer",
-				"nuclear-label",
-				"sites-layer",
-				"sites-label",
-				"evac-fill",
-				"evac-line",
-				"user-location-circle",
-				"user-location-accuracy",
-				"carto-layer",
-			];
-			const sources = [
-				"iran-border",
-				"strikes",
-				"sites",
-				"nuclear-source",
-				"evac",
-				"user-location",
-				"carto-layer",
-			];
-
-			layers.forEach((layer) => {
-				if (map.current?.getLayer(layer)) {
-					map.current?.removeLayer(layer);
-				}
-			});
-
-			sources.forEach((source) => {
-				if (map.current?.getSource(source)) {
-					map.current?.removeSource(source);
-				}
-			});
-
 			// Update background color
 			map.current.setPaintProperty(
 				"background",
@@ -867,184 +298,403 @@ const MapComponent: React.FC<MapComponentProps> = ({
 				maxzoom: 20,
 			});
 
-			// First add all circle layers
-			if (dataSources.iranBorder) {
-				map.current.addSource("iran-border", {
-					type: "geojson",
-					data: dataSources.iranBorder as unknown as GeoJSON.GeoJSON | string,
+			totalBorders.forEach((border) => {
+				const hasSourceAlready =
+					border.source.key && map.current?.getSource(border.source.key);
+				const shouldAddSource =
+					border.visible &&
+					border.source.key &&
+					bordersData[border.id].data &&
+					!hasSourceAlready;
+				if (shouldAddSource) {
+					map.current?.addSource(border.source.key, {
+						type: "geojson",
+						data: bordersData[border.id]
+							.data as unknown as GeoJSON.FeatureCollection,
+					});
+				}
+
+				const hasFillLayerAlready = map.current?.getLayer(border.fill.key);
+				const shouldAddFillLayer =
+					border.visible && border.fill.key && !hasFillLayerAlready;
+				if (shouldAddFillLayer) {
+					map.current?.addLayer({
+						id: border.fill.key,
+						type: "fill",
+						source: border.source.key,
+						paint: {
+							"fill-color": border.fill.color,
+							"fill-opacity": 0.2,
+						},
+					});
+				}
+
+				const hasLinkLayerAlready = map.current?.getLayer(border.line.key);
+				const shouldAddLinkLayer =
+					border.visible && border.line.key && !hasLinkLayerAlready;
+				if (shouldAddLinkLayer) {
+					map.current?.addLayer({
+						id: border.line.key,
+						type: "line",
+						source: border.source.key,
+						paint: {
+							"line-color": border.line.color,
+							"line-width": 3,
+							"line-opacity": 0.8,
+						},
+					});
+				}
+			});
+
+			totalLayers.forEach((layer) => {
+				// Add images for layers that have icons and are visible
+				const iconKey = layer.icon?.key;
+				const iconImage = layersData[layer.id].iconImage;
+				const hasImageAlready = iconKey && map.current?.hasImage(iconKey);
+				const shouldAddImage =
+					iconImage && iconKey && layer.visible && !hasImageAlready;
+				if (shouldAddImage) {
+					map.current?.addImage(iconKey, iconImage);
+				}
+
+				// Add sources for layers that have data and are visible
+				const hasSourceAlready =
+					layer.source.key && map.current?.getSource(layer.source.key);
+				const shouldAddSource =
+					layer.visible &&
+					layer.source.key &&
+					layersData[layer.id].data &&
+					!hasSourceAlready;
+				if (shouldAddSource) {
+					map.current?.addSource(layer.source.key, {
+						type: "geojson",
+						data: layersData[layer.id]
+							.data as unknown as GeoJSON.FeatureCollection,
+					});
+				}
+
+				// Add layers for layers that have data and are visible
+				const hasLayerAlready =
+					layer.layerKey && map.current?.getLayer(layer.layerKey);
+				const shouldAddLayer =
+					layer.visible &&
+					layer.layerKey &&
+					layersData[layer.id].data &&
+					!hasLayerAlready;
+				if (shouldAddLayer) {
+					map.current?.addLayer({
+						id: layer.layerKey,
+						type: "symbol",
+						source: layer.source.key,
+						layout: {
+							"icon-image": layer.icon?.key,
+							"icon-size": 0.4,
+							"icon-allow-overlap": true,
+							"icon-ignore-placement": true,
+						},
+					});
+				}
+
+				// Add label layers for layers that have data and are visible
+				const hasLabelLayerAlready =
+					layer.label.key && map.current?.getLayer(layer.label.key);
+				const shouldAddLabelLayer =
+					layer.visible &&
+					layer.label.key &&
+					layersData[layer.id].data &&
+					!hasLabelLayerAlready;
+				if (shouldAddLabelLayer) {
+					map.current?.addLayer({
+						id: layer.label.key,
+						type: "symbol",
+						source: layer.source.key,
+						layout: {
+							"text-field": ["get", layer.label.textField],
+							"text-offset": [0, 1.5],
+							"text-anchor": "top",
+							"text-size": ["interpolate", ["linear"], ["zoom"], 2, 11, 10, 18],
+							"text-allow-overlap": false,
+							"text-writing-mode": ["horizontal"],
+						},
+						paint: {
+							"text-color": layer.label.textColor,
+							"text-halo-color": isDarkMode ? "#FFFFFF" : "#000000",
+							"text-halo-width": 0.8,
+						},
+					});
+				}
+			});
+
+			// Mouse events for layers
+			totalLayers.forEach((layer) => {
+				if (!map.current?.getLayer(layer.layerKey)) return;
+
+				// Desktop events (hover)
+				map.current?.on("mouseenter", layer.layerKey, (e) => {
+					if (!map.current || isMobile()) return;
+
+					map.current.getCanvas().style.cursor = "pointer";
+
+					if (e.features?.[0]) {
+						const properties = e.features[0].properties;
+						const coordinates = (e.features[0].geometry as Point).coordinates;
+
+						// Add coordinates to properties for tooltip
+						// @ts-expect-error
+						const enrichedProperties: MapGeoJSONFeature &
+							Pick<LocationFeature, "geometry" | "coordinates"> = {
+							...properties,
+							geometry: e.features[0].geometry,
+							coordinates: coordinates,
+						};
+
+						onLocationHoverRef.current(
+							enrichedProperties as unknown as LocationProperties,
+							e.originalEvent as MouseEvent,
+						);
+					}
 				});
 
-				map.current.addLayer({
-					id: "iran-border-fill",
-					type: "fill",
-					source: "iran-border",
-					paint: {
-						"fill-color": "rgba(255, 0, 0, 0.1)",
-						"fill-opacity": 0.2,
-					},
+				map.current?.on("mousemove", layer.layerKey, (e) => {
+					if (!map.current || isMobile()) return;
+					onMouseMoveRef.current(e.originalEvent as MouseEvent);
 				});
 
-				map.current.addLayer({
-					id: "iran-border-line",
-					type: "line",
-					source: "iran-border",
-					paint: {
-						"line-color": "#FF0000",
-						"line-width": 3,
-						"line-opacity": 0.8,
-					},
+				map.current?.on("mouseleave", layer.layerKey, (_e) => {
+					if (!map.current || isMobile()) return;
+
+					// Check if mouse is moving to tooltip
+					// const rect = map.current.getContainer().getBoundingClientRect();
+
+					// Small delay to allow moving to tooltip
+					setTimeout(() => {
+						const tooltipElement = document.querySelector("[data-tooltip]");
+						if (!tooltipElement || !tooltipElement.matches(":hover")) {
+							if (map.current) {
+								map.current.getCanvas().style.cursor = "";
+								onLocationHoverRef.current(null);
+							}
+						}
+					}, 2000);
+				});
+
+				// Mobile and Desktop click events
+				map.current?.on("click", layer.layerKey, (e) => {
+					if (!map.current || !e.features || !e.features[0]) return;
+
+					const properties = e.features[0].properties as LocationProperties;
+					const coordinates = (
+						e.features[0].geometry as Point
+					).coordinates.slice();
+
+					if (isMobile()) {
+						// Add coordinates to properties for tooltip
+						const enrichedProperties = {
+							...properties,
+							geometry: e.features[0].geometry,
+							coordinates: coordinates,
+						};
+
+						onLocationHoverRef.current(
+							enrichedProperties as unknown as LocationProperties,
+							e.originalEvent as MouseEvent,
+						);
+					}
+
+					map.current?.flyTo({
+						center: coordinates as LngLatLike,
+						zoom: 10,
+						duration: 1000,
+					});
+				});
+			});
+
+			// Mobile click-to-close tooltip
+			if (isMobile()) {
+				map.current.on("click", (e) => {
+					const features = map.current?.queryRenderedFeatures(e.point, {
+						layers: totalLayers.map((layer) => layer.layerKey),
+					});
+
+					if (features?.length === 0) {
+						onLocationHoverRef.current(null);
+					}
 				});
 			}
 
-			if (dataSources.strikes) {
-				map.current.addSource("strikes", {
-					type: "geojson",
-					data: dataSources.strikes as unknown as GeoJSON.GeoJSON | string,
-				});
+			setIsLoading(false);
+		} catch (err) {
+			console.error("❌ Error loading map data:", err);
+			setError(
+				"خطا در بارگذاری داده‌های نقشه: " +
+					(err instanceof Error ? err.message : "خطای نامشخص"),
+			);
+			setIsLoading(false);
 
-				map.current.addLayer({
-					id: "strikes-layer",
-					type: "symbol",
-					source: "strikes",
-					layout: {
-						"icon-image": "explosion-icon",
-						"icon-size": 0.4,
-						"icon-allow-overlap": true,
-						"icon-ignore-placement": true,
-					},
-				});
+			// Auto retry data loading up to 2 times
+			if (retryCount < 2) {
+				setTimeout(() => {
+					retryMapLoad();
+				}, 2000);
 			}
+		}
+	}, [layersData, bordersData, isDarkMode, isMobile, retryCount, retryMapLoad]);
 
-			if (dataSources.sites) {
-				map.current.addSource("sites", {
-					type: "geojson",
-					data: dataSources.sites as unknown as GeoJSON.GeoJSON | string,
-				});
+	const eraseMap = useCallback(() => {
+		if (!map.current) return;
 
-				map.current.addLayer({
-					id: "sites-layer",
-					type: "symbol",
-					source: "sites",
-					layout: {
-						"icon-image": "missile-base-icon",
-						"icon-size": 0.4,
-						"icon-allow-overlap": true,
-						"icon-ignore-placement": true,
-					},
-				});
+		try {
+			// Remove all existing layers and sources
+			const layers = [
+				"user-location-circle",
+				"user-location-accuracy",
+				"carto-layer",
+			]
+				.concat(
+					totalLayers
+						.flatMap((layer) => [
+							layer.layerKey,
+							layer.label.key,
+							layer.icon?.key ?? "",
+						])
+						.filter(Boolean),
+				)
+				.concat(
+					totalBorders.flatMap((border) => [border.fill.key, border.line.key]),
+				);
+
+			const sources = ["user-location", "carto-layer"]
+				.concat(totalLayers.map((layer) => layer.source.key))
+				.concat(totalBorders.map((border) => border.source.key));
+
+			layers.forEach((layer) => {
+				if (map.current?.getLayer(layer)) {
+					map.current?.removeLayer(layer);
+				}
+			});
+
+			sources.forEach((source) => {
+				if (map.current?.getSource(source)) {
+					map.current?.removeSource(source);
+				}
+			});
+		} catch (err) {
+			console.error("❌ Error erasing map:", err);
+		}
+	}, []);
+
+	// Initialize map
+	useEffect(() => {
+		if (map.current) return;
+		if (!mapContainer.current) return;
+		if (!isLayersDataLoaded || !isBordersDataLoaded) return;
+
+		try {
+			map.current = new maplibregl.Map({
+				container: mapContainer.current,
+				style: {
+					version: 8,
+					glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+					sources: {},
+					layers: [
+						{
+							id: "background",
+							type: "background",
+							paint: {
+								"background-color": isDarkMode ? "#242f3e" : "#f8f9fa",
+							},
+						},
+					],
+				},
+				center: [53.688, 32.4279],
+				zoom: 4.7,
+				pitch: 0,
+				bearing: 0,
+			});
+
+			map.current.on("load", () => {
+				setIsMapLoaded(true);
+			});
+
+			map.current.on("error", (e) => {
+				console.error("Map error:", e);
+
+				// Check if it's a tile loading error (usually temporary)
+				if (
+					e.error?.message?.includes("Failed to fetch") ||
+					e.error?.message?.includes("AJAXError")
+				) {
+					console.warn("Tile loading error, retrying...", e.error?.message);
+
+					// For tile errors, retry more aggressively but silently
+					if (retryCount < 5) {
+						const delay = Math.min(500 * 1.5 ** retryCount, 3000);
+						setTimeout(() => {
+							retryMapLoad();
+						}, delay);
+						return;
+					}
+				}
+
+				setError(`خطا در بارگذاری نقشه: ${e.error?.message || "خطای نامشخص"}`);
+				setIsLoading(false);
+
+				// Auto retry up to 3 times for other errors
+				if (retryCount < 3) {
+					const delay = Math.min(1000 * 2 ** retryCount, 5000); // exponential backoff, max 5s
+					setTimeout(() => {
+						retryMapLoad();
+					}, delay);
+				}
+			});
+
+			map.current.once("load", async () => {
+				await loadMap();
+			});
+		} catch (err) {
+			console.error("❌ Error loading map data:", err);
+			setError(
+				"خطا در بارگذاری داده‌های نقشه: " +
+					(err instanceof Error ? err.message : "خطای نامشخص"),
+			);
+			setIsLoading(false);
+
+			// Auto retry data loading up to 2 times
+			if (retryCount < 2) {
+				setTimeout(() => {
+					retryMapLoad();
+				}, 2000);
 			}
+		}
+	}, [
+		loadMap,
+		isLayersDataLoaded,
+		isBordersDataLoaded,
+		isDarkMode,
+		retryCount,
+		retryMapLoad,
+	]);
 
-			if (dataSources.sites) {
-				map.current.addSource("nuclear-source", {
-					type: "geojson",
-					data: dataSources.sites as unknown as GeoJSON.GeoJSON | string,
-				});
-
-				map.current.addLayer({
-					id: "nuclear-layer",
-					type: "symbol",
-					source: "nuclear-source",
-					layout: {
-						"icon-image": "nuclear-icon",
-						"icon-size": 0.4,
-						"icon-allow-overlap": true,
-						"icon-ignore-placement": true,
-					},
-				});
+	// Cleanup on unmount
+	useEffect(() => {
+		return () => {
+			if (map.current) {
+				map.current.remove();
+				map.current = null;
 			}
+		};
+	}, []);
 
-			if (dataSources.evac) {
-				map.current.addSource("evac", {
-					type: "geojson",
-					data: dataSources.evac as unknown as GeoJSON.GeoJSON | string,
-				});
+	// Update map style when theme changes
+	const themeBackup = useRef<boolean | null>(null);
+	useEffect(() => {
+		if (!map.current || !isMapLoaded) return;
+		if (themeBackup.current === null) return;
+		if (themeBackup.current === isDarkMode) return;
 
-				map.current.addLayer({
-					id: "evac-fill",
-					type: "fill",
-					source: "evac",
-					paint: {
-						"fill-color": "#ff0000",
-						"fill-opacity": 0.2,
-					},
-				});
-
-				map.current.addLayer({
-					id: "evac-line",
-					type: "line",
-					source: "evac",
-					paint: {
-						"line-color": "#ff0000",
-						"line-width": 2,
-						"line-opacity": 0.8,
-						"line-dasharray": [4, 2],
-					},
-				});
-			}
-
-			// Then add all text layers
-			if (dataSources.strikes) {
-				map.current.addLayer({
-					id: "strikes-label",
-					type: "symbol",
-					source: "strikes",
-					layout: {
-						"text-field": ["get", "BASES_CLUSTER"],
-						"text-offset": [0, 1.5],
-						"text-anchor": "top",
-						"text-size": ["interpolate", ["linear"], ["zoom"], 2, 11, 10, 16],
-						"text-allow-overlap": false,
-						"text-writing-mode": ["horizontal"],
-					},
-					paint: {
-						"text-color": "#ff9100",
-						"text-halo-color": isDarkMode ? "#d1d1d1" : "#333333",
-						"text-halo-width": 2,
-					},
-				});
-			}
-
-			if (dataSources.sites) {
-				map.current.addLayer({
-					id: "sites-label",
-					type: "symbol",
-					source: "sites",
-					layout: {
-						"text-field": ["get", "SiteTargeted"],
-						"text-offset": [0, 1.5],
-						"text-anchor": "top",
-						"text-size": ["interpolate", ["linear"], ["zoom"], 2, 12, 10, 18],
-						"text-allow-overlap": false,
-						"text-writing-mode": ["horizontal"],
-					},
-					paint: {
-						"text-color": "#FFFFFF",
-						"text-halo-color": isDarkMode ? "#d1d1d1" : "#333333",
-						"text-halo-width": 2,
-					},
-				});
-			}
-
-			if (dataSources.nuclear) {
-				map.current.addLayer({
-					id: "nuclear-label",
-					type: "symbol",
-					source: "nuclear-source",
-					layout: {
-						"text-field": ["get", "Site"],
-						"text-offset": [0, 1.5],
-						"text-anchor": "top",
-						"text-size": ["interpolate", ["linear"], ["zoom"], 2, 12, 10, 18],
-						"text-allow-overlap": false,
-						"text-writing-mode": ["horizontal"],
-					},
-					paint: {
-						"text-color": "#FFFFFF",
-						"text-halo-color": isDarkMode ? "#d1d1d1" : "#333333",
-						"text-halo-width": 2,
-					},
-				});
-			}
+		try {
+			eraseMap();
+			loadMap();
 
 			// Re-add user location if it exists
 			if (userLocation) {
@@ -1113,89 +763,14 @@ const MapComponent: React.FC<MapComponentProps> = ({
 					},
 				});
 			}
-
-			// Re-add event listeners after theme change
-			const isMobile = () => window.innerWidth < 768;
-
-			["strikes-circle", "sites-circle"].forEach((layerId) => {
-				if (!map.current?.getLayer(layerId)) return;
-
-				// Desktop events (hover)
-				map.current?.on("mouseenter", layerId, (e) => {
-					if (!map.current || isMobile()) return;
-
-					map.current.getCanvas().style.cursor = "pointer";
-
-					if (e.features?.[0]) {
-						const properties = e.features[0].properties as LocationProperties;
-						const coordinates = (e.features[0].geometry as Point).coordinates;
-
-						// Add coordinates to properties for tooltip
-						const enrichedProperties = {
-							...properties,
-							geometry: e.features[0].geometry,
-							coordinates: coordinates,
-						};
-
-						onLocationHoverRef.current(
-							enrichedProperties as unknown as LocationProperties,
-							e.originalEvent as MouseEvent,
-						);
-					}
-				});
-
-				map.current?.on("mousemove", layerId, (e) => {
-					if (!map.current || isMobile()) return;
-					onMouseMoveRef.current(e.originalEvent as MouseEvent);
-				});
-
-				map.current?.on("mouseleave", layerId, (_e) => {
-					if (!map.current || isMobile()) return;
-
-					// Check if mouse is moving to tooltip
-					setTimeout(() => {
-						const tooltipElement = document.querySelector("[data-tooltip]");
-						if (!tooltipElement || !tooltipElement.matches(":hover")) {
-							map.current!.getCanvas().style.cursor = "";
-							onLocationHoverRef.current(null);
-						}
-					}, 2000);
-				});
-
-				// Mobile and Desktop click events
-				map.current?.on("click", layerId, (e) => {
-					if (!map.current || !e.features || !e.features[0]) return;
-
-					const properties = e.features[0].properties;
-					const coordinates = (
-						e.features[0].geometry as Point
-					).coordinates.slice();
-
-					if (isMobile()) {
-						// Add coordinates to properties for tooltip
-						const enrichedProperties = {
-							...properties,
-							geometry: e.features[0].geometry,
-							coordinates: coordinates,
-						};
-
-						onLocationHoverRef.current(
-							enrichedProperties as unknown as LocationProperties,
-							e.originalEvent as MouseEvent,
-						);
-					}
-
-					map.current?.flyTo({
-						center: coordinates as LngLatLike,
-						zoom: 8,
-						duration: 2000,
-					});
-				});
-			});
 		} catch (error) {
 			console.error("Error updating map style:", error);
 		}
-	}, [isDarkMode, isMapLoaded, userLocation]);
+	}, [isDarkMode, isMapLoaded, userLocation, loadMap, eraseMap]);
+
+	useEffect(() => {
+		themeBackup.current = isDarkMode;
+	}, [isDarkMode]);
 
 	if (error) {
 		return (

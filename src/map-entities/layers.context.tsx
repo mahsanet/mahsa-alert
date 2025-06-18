@@ -1,5 +1,7 @@
 import {
 	createContext,
+	type Dispatch,
+	type SetStateAction,
 	useCallback,
 	useContext,
 	useEffect,
@@ -13,13 +15,14 @@ import { getFetchLayerDataPromise, initialLayersData } from "./layers.utils";
 
 interface LayersContextType {
 	layers: Layer[];
-	setLayers: (layers: Layer[]) => void;
+	setLayers: Dispatch<SetStateAction<Layer[]>>;
 	toggleLayerVisibility: (
 		layerId: keyof typeof layerIds,
 		visible: boolean,
 	) => void;
 	layersData: LayersData;
 	setLayersData: (layersData: LayersData) => void;
+	isLayersDataLoaded: boolean;
 }
 
 const LayersContext = createContext<LayersContextType>({
@@ -28,6 +31,7 @@ const LayersContext = createContext<LayersContextType>({
 	toggleLayerVisibility: () => {},
 	layersData: initialLayersData,
 	setLayersData: () => {},
+	isLayersDataLoaded: false,
 });
 
 export const useLayers = (): LayersContextType => useContext(LayersContext);
@@ -35,6 +39,7 @@ export const useLayers = (): LayersContextType => useContext(LayersContext);
 export const LayersProvider = ({ children }: { children: React.ReactNode }) => {
 	const [layers, setLayers] = useState(totalLayers);
 	const [layersData, setLayersData] = useState<LayersData>(initialLayersData);
+	const [isLayersDataLoaded, setIsLayersDataLoaded] = useState(false);
 
 	// store layersData in ref to avoid re-rendering when it changes in useEffect
 	const layersDataRef = useRef<LayersData>(layersData);
@@ -54,6 +59,7 @@ export const LayersProvider = ({ children }: { children: React.ReactNode }) => {
 			);
 
 			setLayersData(Object.fromEntries(dataEntries) as LayersData);
+			setIsLayersDataLoaded(true);
 		};
 
 		fetchLayersData();
@@ -78,6 +84,7 @@ export const LayersProvider = ({ children }: { children: React.ReactNode }) => {
 				toggleLayerVisibility,
 				layersData,
 				setLayersData,
+				isLayersDataLoaded,
 			}}
 		>
 			<LayersDataRefProvider dataRef={layersDataRef}>

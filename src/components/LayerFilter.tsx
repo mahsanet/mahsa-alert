@@ -1,16 +1,22 @@
 import type React from "react";
 import { useState } from "react";
 import { FaFilter, FaTimes } from "react-icons/fa";
+import type { borderIds } from "../map-entities/borders";
+import { useBorders } from "../map-entities/borders.context";
 import type { layerIds } from "../map-entities/layers";
 import { useLayers } from "../map-entities/layers.context";
 
 interface LayerFilterProps {
-	onLayerToggle: (layerId: keyof typeof layerIds, visible: boolean) => void;
+	onLayerToggle: (
+		id: keyof typeof layerIds | keyof typeof borderIds,
+		visible: boolean,
+	) => void;
 }
 
 const LayerFilter: React.FC<LayerFilterProps> = ({ onLayerToggle }) => {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const { layers, toggleLayerVisibility } = useLayers();
+	const { borders, toggleBorderVisibility } = useBorders();
 
 	const toggleExpanded = () => {
 		setIsExpanded(!isExpanded);
@@ -40,26 +46,35 @@ const LayerFilter: React.FC<LayerFilterProps> = ({ onLayerToggle }) => {
 					</div>
 
 					<div className="space-y-3">
-						{Object.values(layers).map((layer) => (
-							<div key={layer.id} className="flex items-center justify-between">
-								<div className="flex items-center space-x-3 rtl:space-x-reverse">
-									<span className="text-white text-sm">{layer.name}</span>
-								</div>
+						{[...Object.values(layers), ...Object.values(borders)].map(
+							(entity) => (
+								<div
+									key={entity.id}
+									className="flex items-center justify-between"
+								>
+									<div className="flex items-center space-x-3 rtl:space-x-reverse">
+										<span className="text-white text-sm">{entity.name}</span>
+									</div>
 
-								<label className="relative inline-flex items-center cursor-pointer">
-									<input
-										type="checkbox"
-										checked={layer.visible}
-										onChange={(e) => {
-											toggleLayerVisibility(layer.id, e.target.checked);
-											onLayerToggle(layer.id, e.target.checked);
-										}}
-										className="sr-only peer"
-									/>
-									<div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
-								</label>
-							</div>
-						))}
+									<label className="relative inline-flex items-center cursor-pointer">
+										<input
+											type="checkbox"
+											checked={entity.visible}
+											onChange={(e) => {
+												if (entity.type === "border") {
+													toggleBorderVisibility(entity.id, e.target.checked);
+												} else {
+													toggleLayerVisibility(entity.id, e.target.checked);
+												}
+												onLayerToggle(entity.id, e.target.checked);
+											}}
+											className="sr-only peer"
+										/>
+										<div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
+									</label>
+								</div>
+							),
+						)}
 					</div>
 				</div>
 			)}
