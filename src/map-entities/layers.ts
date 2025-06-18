@@ -6,11 +6,19 @@ export const layerIds = {
 } as const;
 
 export type Layer = {
+	type: "layer";
 	id: keyof typeof layerIds;
-	mapIds: string[];
+	layerKey: string;
 	name: string;
-	color: string;
-	dataPath: string;
+	label: {
+		key: string;
+		textField: string;
+		textColor: string;
+	};
+	source: {
+		key: string;
+		path: string;
+	};
 	icon: {
 		key: string;
 		path: string;
@@ -20,11 +28,19 @@ export type Layer = {
 
 export const totalLayers: Layer[] = [
 	{
+		type: "layer",
 		id: layerIds.strikes,
-		mapIds: [`${layerIds.strikes}-layer`, `${layerIds.strikes}-label`],
+		layerKey: `${layerIds.strikes}-layer`,
 		name: "حملات تایید شده",
-		color: "#b81102",
-		dataPath: "public/sources/strikes.geojson",
+		label: {
+			key: `${layerIds.strikes}-label`,
+			textField: "SiteTargeted",
+			textColor: "#b81102",
+		},
+		source: {
+			key: `${layerIds.strikes}-source`,
+			path: "/sources/strikes.geojson",
+		},
 		icon: {
 			key: "explosion-icon",
 			path: "/assets/symbols/explosion.png",
@@ -32,11 +48,19 @@ export const totalLayers: Layer[] = [
 		visible: true,
 	},
 	{
-		id: layerIds.sites as keyof typeof layerIds,
-		mapIds: [`${layerIds.sites}-layer`, `${layerIds.sites}-label`],
+		type: "layer",
+		id: layerIds.sites,
+		layerKey: `${layerIds.sites}-layer`,
 		name: "پایگاه‌های موشکی",
-		color: "#ff9100",
-		dataPath: "public/sources/missile-bases.geojson",
+		label: {
+			key: `${layerIds.sites}-label`,
+			textField: "BASES_CLUSTER",
+			textColor: "#3674B5",
+		},
+		source: {
+			key: `${layerIds.sites}-source`,
+			path: "/sources/missile-bases.geojson",
+		},
 		icon: {
 			key: "missile-base-icon",
 			path: "/assets/symbols/missile.png",
@@ -44,24 +68,23 @@ export const totalLayers: Layer[] = [
 		visible: true,
 	},
 	{
+		type: "layer",
 		id: layerIds.nuclear,
-		mapIds: [`${layerIds.nuclear}-layer`, `${layerIds.nuclear}-label`],
+		layerKey: `${layerIds.nuclear}-layer`,
 		name: "مراکز هسته‌ای",
-		color: "#ff9100",
-		dataPath: "public/sources/nuclear-facilities.geojson",
+		label: {
+			key: `${layerIds.nuclear}-label`,
+			textField: "Site",
+			textColor: "#ff9100",
+		},
+		source: {
+			key: `${layerIds.nuclear}-source`,
+			path: "/sources/nuclear-facilities.geojson",
+		},
 		icon: {
 			key: "nuclear-icon",
 			path: "/assets/symbols/nuclear.png",
 		},
-		visible: true,
-	},
-	{
-		id: layerIds.evac,
-		mapIds: [`${layerIds.evac}-fill`, `${layerIds.evac}-line`],
-		name: "مناطق تخلیه",
-		color: "#ff0000",
-		dataPath: "public/sources/evac-area-jun-16.geojson",
-		icon: null,
 		visible: true,
 	},
 ] as const;

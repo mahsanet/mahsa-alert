@@ -7,8 +7,11 @@ import MapComponent from "./components/MapComponent";
 import ProximityAlert from "./components/ProximityAlert";
 import ThemeToggle from "./components/ThemeToggle";
 import Legend from "./components/WarningBox";
-import { layerIds } from "./map-entities/layers";
+import { borderIds } from "./map-entities/borders";
+import { BordersProvider } from "./map-entities/borders.context";
+import type { layerIds } from "./map-entities/layers";
 import { LayersProvider } from "./map-entities/layers.context";
+import { UserLocationProvider } from "./map-entities/user-location.context";
 import type { LocationProperties } from "./types";
 
 interface TooltipState {
@@ -25,10 +28,6 @@ function App() {
 	const [isFirstTimeWarning, setIsFirstTimeWarning] = useState(true);
 	const [isWarningExpanded, setIsWarningExpanded] = useState(false);
 	const [shouldZoomToEvac, setShouldZoomToEvac] = useState(false);
-	const [userLocation, setUserLocation] = useState<{
-		lat: number;
-		lng: number;
-	} | null>(null);
 
 	const handleLocationHover = useCallback(
 		(location: LocationProperties | null, mouseEvent?: MouseEvent) => {
@@ -86,28 +85,20 @@ function App() {
 		setIsWarningExpanded(true);
 	}, []);
 
-	const handleLayerToggle = useCallback(
-		(layerId: keyof typeof layerIds, visible: boolean) => {
-			// Zoom to evacuation area when evac layer is turned on
-			if (layerId === layerIds.evac && visible) {
-				setShouldZoomToEvac(true);
-				// Reset zoom trigger after a delay
-				setTimeout(() => setShouldZoomToEvac(false), 100);
-			}
-		},
-		[],
-	);
+	const handleLayerToggle = useCallback<
+		Parameters<typeof LayerFilter>[0]["onLayerToggle"]
+	>((id: keyof typeof layerIds | keyof typeof borderIds, visible: boolean) => {
+		// Zoom to evacuation area when evac layer is turned on
+		if (id === borderIds.evac && visible) {
+			setShouldZoomToEvac(true);
+			// Reset zoom trigger after a delay
+			setTimeout(() => setShouldZoomToEvac(false), 100);
+		}
+	}, []);
 
 	const handleThemeToggle = useCallback(() => {
 		setIsDarkMode((prev) => !prev);
 	}, []);
-
-	const handleLocationFound = useCallback(
-		(coords: { lat: number; lng: number }) => {
-			setUserLocation(coords);
-		},
-		[],
-	);
 
 	return (
 		<div
@@ -116,34 +107,37 @@ function App() {
 			<Header />
 			<ThemeToggle isDarkMode={isDarkMode} onToggle={handleThemeToggle} />
 
-			<LayersProvider>
-				<div className="h-full w-full">
-					<MapComponent
-						onLocationHover={handleLocationHover}
-						onMouseMove={handleMouseMove}
-						isDarkMode={isDarkMode}
-						shouldZoomToEvac={shouldZoomToEvac}
-						userLocation={userLocation}
-					/>
-				</div>
+			<UserLocationProvider>
+				<LayersProvider>
+					<BordersProvider>
+						<div className="h-full w-full">
+							<MapComponent
+								onLocationHover={handleLocationHover}
+								onMouseMove={handleMouseMove}
+								isDarkMode={isDarkMode}
+								shouldZoomToEvac={shouldZoomToEvac}
+							/>
+						</div>
 
-				<Legend
-					isVisible={warningBoxVisible}
-					onClose={handleCloseWarningBox}
-					isCompact={!isFirstTimeWarning && !isWarningExpanded}
-					onExpand={handleExpandWarning}
-				/>
-				<LayerFilter onLayerToggle={handleLayerToggle} />
-				<LocateButton
-					onLocationFound={handleLocationFound}
-					isDarkMode={isDarkMode}
-				/>
-				<ProximityAlert userLocation={userLocation} />
-				<LocationTooltip
-					tooltipState={tooltipState}
-					onClose={() => setTooltipState(null)}
-				/>
-			</LayersProvider>
+						<Legend
+							isVisible={warningBoxVisible}
+							onClose={handleCloseWarningBox}
+							isCompact={!isFirstTimeWarning && !isWarningExpanded}
+							onExpand={handleExpandWarning}
+						/>
+						<LayerFilter
+							isDarkMode={isDarkMode}
+							onLayerToggle={handleLayerToggle}
+						/>
+						<LocateButton isDarkMode={isDarkMode} />
+						<ProximityAlert />
+						<LocationTooltip
+							tooltipState={tooltipState}
+							onClose={() => setTooltipState(null)}
+						/>
+					</BordersProvider>
+				</LayersProvider>
+			</UserLocationProvider>
 
 			{/* Instructions overlay for mobile */}
 			<div className="absolute bottom-6 right-6 md:hidden bg-black/60 backdrop-blur-sm rounded-lg p-3 text-white text-xs max-w-48">

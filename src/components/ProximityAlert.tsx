@@ -2,18 +2,16 @@ import { AlertTriangle, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { useLayers } from "../map-entities/layers.context";
+import { useUserLocation } from "../map-entities/user-location.context";
 import {
 	checkLocationProximity,
 	generateWarningMessage,
 	type ProximityResult,
 } from "../utils/locationProximity";
 
-interface ProximityAlertProps {
-	userLocation: { lat: number; lng: number } | null;
-}
-
-const ProximityAlert: React.FC<ProximityAlertProps> = ({ userLocation }) => {
+const ProximityAlert: React.FC = () => {
 	const { layersData } = useLayers();
+	const { userLocation } = useUserLocation();
 
 	const [proximityResult, setProximityResult] =
 		useState<ProximityResult | null>(null);
