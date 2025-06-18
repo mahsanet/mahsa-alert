@@ -7,7 +7,9 @@ import MapComponent from "./components/MapComponent";
 import ProximityAlert from "./components/ProximityAlert";
 import ThemeToggle from "./components/ThemeToggle";
 import Legend from "./components/WarningBox";
-import { layerIds } from "./map-entities/layers";
+import { borderIds } from "./map-entities/borders";
+import { BordersProvider } from "./map-entities/borders.context";
+import type { layerIds } from "./map-entities/layers";
 import { LayersProvider } from "./map-entities/layers.context";
 import type { LocationProperties } from "./types";
 
@@ -86,17 +88,16 @@ function App() {
 		setIsWarningExpanded(true);
 	}, []);
 
-	const handleLayerToggle = useCallback(
-		(layerId: keyof typeof layerIds, visible: boolean) => {
-			// Zoom to evacuation area when evac layer is turned on
-			if (layerId === layerIds.evac && visible) {
-				setShouldZoomToEvac(true);
-				// Reset zoom trigger after a delay
-				setTimeout(() => setShouldZoomToEvac(false), 100);
-			}
-		},
-		[],
-	);
+	const handleLayerToggle = useCallback<
+		Parameters<typeof LayerFilter>[0]["onLayerToggle"]
+	>((id: keyof typeof layerIds | keyof typeof borderIds, visible: boolean) => {
+		// Zoom to evacuation area when evac layer is turned on
+		if (id === borderIds.evac && visible) {
+			setShouldZoomToEvac(true);
+			// Reset zoom trigger after a delay
+			setTimeout(() => setShouldZoomToEvac(false), 100);
+		}
+	}, []);
 
 	const handleThemeToggle = useCallback(() => {
 		setIsDarkMode((prev) => !prev);
@@ -117,32 +118,34 @@ function App() {
 			<ThemeToggle isDarkMode={isDarkMode} onToggle={handleThemeToggle} />
 
 			<LayersProvider>
-				<div className="h-full w-full">
-					<MapComponent
-						onLocationHover={handleLocationHover}
-						onMouseMove={handleMouseMove}
-						isDarkMode={isDarkMode}
-						shouldZoomToEvac={shouldZoomToEvac}
-						userLocation={userLocation}
-					/>
-				</div>
+				<BordersProvider>
+					<div className="h-full w-full">
+						<MapComponent
+							onLocationHover={handleLocationHover}
+							onMouseMove={handleMouseMove}
+							isDarkMode={isDarkMode}
+							shouldZoomToEvac={shouldZoomToEvac}
+							userLocation={userLocation}
+						/>
+					</div>
 
-				<Legend
-					isVisible={warningBoxVisible}
-					onClose={handleCloseWarningBox}
-					isCompact={!isFirstTimeWarning && !isWarningExpanded}
-					onExpand={handleExpandWarning}
-				/>
-				<LayerFilter onLayerToggle={handleLayerToggle} />
-				<LocateButton
-					onLocationFound={handleLocationFound}
-					isDarkMode={isDarkMode}
-				/>
-				<ProximityAlert userLocation={userLocation} />
-				<LocationTooltip
-					tooltipState={tooltipState}
-					onClose={() => setTooltipState(null)}
-				/>
+					<Legend
+						isVisible={warningBoxVisible}
+						onClose={handleCloseWarningBox}
+						isCompact={!isFirstTimeWarning && !isWarningExpanded}
+						onExpand={handleExpandWarning}
+					/>
+					<LayerFilter onLayerToggle={handleLayerToggle} />
+					<LocateButton
+						onLocationFound={handleLocationFound}
+						isDarkMode={isDarkMode}
+					/>
+					<ProximityAlert userLocation={userLocation} />
+					<LocationTooltip
+						tooltipState={tooltipState}
+						onClose={() => setTooltipState(null)}
+					/>
+				</BordersProvider>
 			</LayersProvider>
 
 			{/* Instructions overlay for mobile */}
