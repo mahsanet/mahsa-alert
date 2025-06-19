@@ -8,9 +8,9 @@ import LocationTooltip from "./components/LocationTooltip";
 import MapComponent from "./components/MapComponent";
 import ProximityAlert from "./components/ProximityAlert";
 import ThemeToggle from "./components/ThemeToggle";
-import { BordersProvider } from "./map-entities/borders";
-import { LayersProvider } from "./map-entities/layers";
-import { UserLocationProvider } from "./map-entities/user-location";
+import { BordersProvider } from "./map-entities/borders/borders.context";
+import { LayersProvider } from "./map-entities/layers/layers.context";
+import { UserLocationProvider } from "./map-entities/user-location/user-location.context";
 import type { LocationProperties } from "./types";
 import { ThemeProvider } from "./ui/theme-provider";
 

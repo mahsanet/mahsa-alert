@@ -10,8 +10,9 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { totalBorders } from "@/map-entities/borders/borders";
 import { useBorders } from "@/map-entities/borders/borders.context";
 import { cartoConfig } from "@/map-entities/carto";
-import { totalLayers, useLayers } from "@/map-entities/layers";
-import { useUserLocation } from "@/map-entities/user-location";
+import { totalLayers } from "@/map-entities/layers";
+import { useLayers } from "@/map-entities/layers.context";
+import { useUserLocation } from "@/map-entities/user-location/user-location.context";
 import type { LocationFeature, LocationProperties } from "@/types";
 import { useTheme } from "@/ui/theme-provider";
 

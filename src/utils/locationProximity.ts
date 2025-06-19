@@ -1,5 +1,5 @@
 import * as turf from "@turf/turf";
-import type { LayersData } from "@/map-entities/layers";
+import type { LayersData } from "@/map-entities/layers.context.types";
 import type { LocationFeature } from "@/types";
 
 export interface ProximityResult {

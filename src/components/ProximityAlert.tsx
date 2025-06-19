@@ -1,8 +1,8 @@
 import { AlertTriangle, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { useLayers } from "@/map-entities/layers";
-import { useUserLocation } from "@/map-entities/user-location";
+import { useLayers } from "@/map-entities/layers/layers.context";
+import { useUserLocation } from "@/map-entities/user-location/user-location.context";
 import {
 	checkLocationProximity,
 	generateWarningMessage,
