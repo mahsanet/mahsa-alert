@@ -11,7 +11,7 @@ import { totalBorders } from "@/map-entities/borders/borders";
 import { useBorders } from "@/map-entities/borders/borders.context";
 import { cartoConfig } from "@/map-entities/carto";
 import { totalLayers } from "@/map-entities/layers";
-import { useLayers } from "@/map-entities/layers.context";
+import { useLayers } from "@/map-entities/layers/layers.context";
 import { useUserLocation } from "@/map-entities/user-location/user-location.context";
 import type { LocationFeature, LocationProperties } from "@/types";
 import { useTheme } from "@/ui/theme-provider";
@@ -546,9 +546,12 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
 	// Initialize map
 	useEffect(() => {
+		console.log({ map, mapContainer });
 		if (map.current) return;
 		if (!mapContainer.current) return;
+		console.log({ isLayersDataLoaded, isBordersDataLoaded });
 		if (!isLayersDataLoaded || !isBordersDataLoaded) return;
+		console.log("hmm");
 
 		try {
 			map.current = new maplibregl.Map({
@@ -574,6 +577,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 			});
 
 			map.current.on("load", () => {
+				console.log("jjjj");
 				setIsMapLoaded(true);
 			});
 			map.current.once("load", loadMap);

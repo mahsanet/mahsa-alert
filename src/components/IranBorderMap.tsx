@@ -71,8 +71,10 @@ const IranBorderMap: React.FC<MapComponentProps> = ({
 					},
 				],
 			},
-			center: [54.389, 32.6892], // Tehran coordinates as approximate center of Iran
-			zoom: 5,
+			center: [53.688, 32.4279],
+			zoom: 4.7,
+			pitch: 0,
+			bearing: 0,
 		});
 
 		mapRef.current.on("load", () => {

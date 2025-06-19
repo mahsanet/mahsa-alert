@@ -2,11 +2,11 @@ import { onMessage } from "firebase/messaging";
 import { useCallback, useEffect, useState } from "react";
 import EvacSlider from "./components/EvacSlider";
 import Header from "./components/Header";
-import IranBorderMap from "./components/IranBorderMap";
 import LayerFilter from "./components/LayerFilter";
 import Layout from "./components/Layout";
 import LocateButton from "./components/LocateButton";
 import LocationTooltip from "./components/LocationTooltip";
+import MapComponent from "./components/MapComponent";
 import ProximityAlert from "./components/ProximityAlert";
 import ThemeToggle from "./components/ThemeToggle";
 import { messaging } from "./firebase";
@@ -88,16 +88,16 @@ function App() {
 					<LayersProvider>
 						<BordersProvider>
 							<div className="h-full w-full">
-								<IranBorderMap
-									onLocationHover={handleLocationHover}
-									onMouseMove={handleMouseMove}
-									zoomToBounds={zoomToBounds}
-								/>
-								{/* <MapComponent
+								{/* <IranBorderMap
 									onLocationHover={handleLocationHover}
 									onMouseMove={handleMouseMove}
 									zoomToBounds={zoomToBounds}
 								/> */}
+								<MapComponent
+									onLocationHover={handleLocationHover}
+									onMouseMove={handleMouseMove}
+									zoomToBounds={zoomToBounds}
+								/>
 							</div>
 
 							<LayerFilter className="fixed top-26 right-5 z-50 " />
