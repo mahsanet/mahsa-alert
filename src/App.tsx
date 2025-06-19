@@ -1,5 +1,7 @@
+import { doc, setDoc } from "firebase/firestore";
 import { onMessage } from "firebase/messaging";
 import { useCallback, useEffect, useState } from "react";
+import { db } from "@/firebase";
 import EvacSlider from "./components/EvacSlider";
 import Header from "./components/Header";
 import LayerFilter from "./components/LayerFilter";
@@ -30,7 +32,20 @@ function App() {
 	const [zoomToBounds, setZoomToBounds] = useState<ZoomToBounds | null>(null);
 
 	useEffect(() => {
-		requestNotificationPermission().catch(console.error);
+		requestNotificationPermission().then(async (token) => {
+			if (!token) return;
+			console.log("is this the token", token);
+			await setDoc(doc(db, "tokens", token), {
+				token,
+				createdAt: new Date(),
+				browser: {
+					userAgent: navigator.userAgent,
+					platform: navigator.platform,
+					language: navigator.language,
+					vendor: navigator.vendor,
+				},
+			});
+		});
 
 		onMessage(messaging, (payload) => {
 			console.log("Message received in foreground:", payload);
