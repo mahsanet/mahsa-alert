@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { onMessage } from "firebase/messaging";
+import { useCallback, useEffect, useState } from "react";
 import EvacSlider from "./components/EvacSlider";
 import Header from "./components/Header";
 import LayerFilter from "./components/LayerFilter";
@@ -8,11 +9,13 @@ import LocationTooltip from "./components/LocationTooltip";
 import MapComponent from "./components/MapComponent";
 import ProximityAlert from "./components/ProximityAlert";
 import ThemeToggle from "./components/ThemeToggle";
+import { messaging } from "./firebase";
 import { BordersProvider } from "./map-entities/borders/borders.context";
 import { LayersProvider } from "./map-entities/layers/layers.context";
 import { UserLocationProvider } from "./map-entities/user-location/user-location.context";
 import type { LocationProperties } from "./types";
 import { ThemeProvider } from "./ui/theme-provider";
+import { requestNotificationPermission } from "./utils/notifications";
 
 interface TooltipState {
 	location: LocationProperties;
@@ -25,6 +28,15 @@ type ZoomToBounds = [[number, number], [number, number]];
 function App() {
 	const [tooltipState, setTooltipState] = useState<TooltipState | null>(null);
 	const [zoomToBounds, setZoomToBounds] = useState<ZoomToBounds | null>(null);
+
+	useEffect(() => {
+		requestNotificationPermission().catch(console.error);
+
+		onMessage(messaging, (payload) => {
+			console.log("Message received in foreground:", payload);
+			alert(payload.notification?.title);
+		});
+	}, []);
 
 	const handleLocationHover = useCallback(
 		(location: LocationProperties | null, mouseEvent?: MouseEvent) => {
