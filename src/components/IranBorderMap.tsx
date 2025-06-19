@@ -4,9 +4,31 @@ import maplibregl, {
 } from "maplibre-gl";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import type { LocationProperties } from "@/types";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { useTheme } from "@/ui/theme-provider";
 
-const IranBorderMap: React.FC = () => {
+interface MapComponentProps {
+	onLocationHover: (
+		location: LocationProperties | null,
+		mouseEvent?: MouseEvent,
+	) => void;
+	onMouseMove: (mouseEvent: MouseEvent) => void;
+	shouldZoomToEvac?: boolean;
+	zoomToBounds?: [[number, number], [number, number]] | null;
+}
+
+const IranBorderMap: React.FC<MapComponentProps> = ({
+	onLocationHover,
+	onMouseMove,
+	zoomToBounds,
+}) => {
+	console.log({
+		onLocationHover,
+		onMouseMove,
+		zoomToBounds,
+	});
+	const { isDarkMode } = useTheme();
 	const mapContainer = useRef<HTMLDivElement | null>(null);
 	const mapRef = useRef<MapLibreMap | null>(null);
 	const [borderData, setBorderData] =
@@ -35,7 +57,20 @@ const IranBorderMap: React.FC = () => {
 
 		mapRef.current = new maplibregl.Map({
 			container: mapContainer.current!,
-			style: "https://demotiles.maplibre.org/style.json",
+			style: {
+				version: 8,
+				glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+				sources: {},
+				layers: [
+					{
+						id: "background",
+						type: "background",
+						paint: {
+							"background-color": isDarkMode ? "#242f3e" : "#f8f9fa",
+						},
+					},
+				],
+			},
 			center: [54.389, 32.6892], // Tehran coordinates as approximate center of Iran
 			zoom: 5,
 		});
@@ -56,7 +91,7 @@ const IranBorderMap: React.FC = () => {
 				},
 			});
 		});
-	}, [borderData]);
+	}, [borderData, isDarkMode]);
 
 	return <div ref={mapContainer} style={{ height: "100vh", width: "100%" }} />;
 };

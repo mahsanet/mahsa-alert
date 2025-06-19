@@ -1,5 +1,5 @@
 import { onMessage } from "firebase/messaging";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import EvacSlider from "./components/EvacSlider";
 import Header from "./components/Header";
 import IranBorderMap from "./components/IranBorderMap";
@@ -27,7 +27,7 @@ type ZoomToBounds = [[number, number], [number, number]];
 
 function App() {
 	const [tooltipState, setTooltipState] = useState<TooltipState | null>(null);
-	const [_, setZoomToBounds] = useState<ZoomToBounds | null>(null);
+	const [zoomToBounds, setZoomToBounds] = useState<ZoomToBounds | null>(null);
 
 	useEffect(() => {
 		requestNotificationPermission().catch(console.error);
@@ -38,44 +38,44 @@ function App() {
 		});
 	}, []);
 
-	// const handleLocationHover = useCallback(
-	// 	(location: LocationProperties | null, mouseEvent?: MouseEvent) => {
-	// 		if (location && mouseEvent) {
-	// 			setTooltipState({
-	// 				location,
-	// 				x: mouseEvent.clientX,
-	// 				y: mouseEvent.clientY,
-	// 			});
-	// 		} else {
-	// 			setTimeout(() => {
-	// 				const tooltipElement = document.querySelector(
-	// 					'[data-tooltip="true"]',
-	// 				);
-	// 				if (!tooltipElement || !tooltipElement.matches(":hover")) {
-	// 					setTooltipState(null);
-	// 				}
-	// 			}, 50);
-	// 		}
-	// 	},
-	// 	[],
-	// );
+	const handleLocationHover = useCallback(
+		(location: LocationProperties | null, mouseEvent?: MouseEvent) => {
+			if (location && mouseEvent) {
+				setTooltipState({
+					location,
+					x: mouseEvent.clientX,
+					y: mouseEvent.clientY,
+				});
+			} else {
+				setTimeout(() => {
+					const tooltipElement = document.querySelector(
+						'[data-tooltip="true"]',
+					);
+					if (!tooltipElement || !tooltipElement.matches(":hover")) {
+						setTooltipState(null);
+					}
+				}, 50);
+			}
+		},
+		[],
+	);
 
-	// const handleMouseMove = useCallback(
-	// 	(mouseEvent: MouseEvent) => {
-	// 		if (tooltipState) {
-	// 			setTooltipState((prev) =>
-	// 				prev
-	// 					? {
-	// 							...prev,
-	// 							x: mouseEvent.clientX,
-	// 							y: mouseEvent.clientY,
-	// 						}
-	// 					: null,
-	// 			);
-	// 		}
-	// 	},
-	// 	[tooltipState],
-	// );
+	const handleMouseMove = useCallback(
+		(mouseEvent: MouseEvent) => {
+			if (tooltipState) {
+				setTooltipState((prev) =>
+					prev
+						? {
+								...prev,
+								x: mouseEvent.clientX,
+								y: mouseEvent.clientY,
+							}
+						: null,
+				);
+			}
+		},
+		[tooltipState],
+	);
 
 	return (
 		<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
@@ -88,7 +88,11 @@ function App() {
 					<LayersProvider>
 						<BordersProvider>
 							<div className="h-full w-full">
-								<IranBorderMap />
+								<IranBorderMap
+									onLocationHover={handleLocationHover}
+									onMouseMove={handleMouseMove}
+									zoomToBounds={zoomToBounds}
+								/>
 								{/* <MapComponent
 									onLocationHover={handleLocationHover}
 									onMouseMove={handleMouseMove}
