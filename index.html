@@ -1,34 +1,83 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mahsa Alert</title>
-    
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-T6JF1Q4B7T"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    
-      gtag('config', 'G-T6JF1Q4B7T');
-    </script>
+	<head>
+		<meta charset="UTF-8" />
+		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="icon" type="image/png" href="/assets/img/logo.jpeg" />
+		<title>Mahsa Alert</title>
 
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "url": "https://alert.mahsanet.com",
-    "name": "Mahsa Alert - by Mahsanet",
-    "logo": "https://alert.mahsanet.com/assets/img/logo.jpeg",
-    "description": "Early warning and shelter map for crisis events in Iran"
-  }
-  </script>
+		<script
+			async
+			src="https://www.googletagmanager.com/gtag/js?id=G-T6JF1Q4B7T"
+		></script>
+		<!-- PWA Meta Tags -->
+		<meta
+			name="description"
+			content="Early warning and shelter map for crisis events in Iran"
+		/>
+		<meta name="theme-color" content="#000000" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta
+			name="apple-mobile-web-app-status-bar-style"
+			content="black-translucent"
+		/>
+		<meta name="apple-mobile-web-app-title" content="Mahsa Alert" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="msapplication-TileColor" content="#000000" />
+		<meta name="msapplication-tap-highlight" content="no" />
 
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+		<!-- Apple Touch Icons -->
+		<link rel="apple-touch-icon" href="/assets/img/icon-192x192.png" />
+		<link
+			rel="apple-touch-icon"
+			sizes="152x152"
+			href="/assets/img/icon-192x192.png"
+		/>
+		<link
+			rel="apple-touch-icon"
+			sizes="180x180"
+			href="/assets/img/icon-192x192.png"
+		/>
+		<link
+			rel="apple-touch-icon"
+			sizes="167x167"
+			href="/assets/img/icon-192x192.png"
+		/>
+
+		<!-- Splash Screen Images for iOS -->
+		<link
+			rel="apple-touch-startup-image"
+			href="/assets/img/icon-512x512.png"
+		/>
+
+		<script
+			async
+			src="https://www.googletagmanager.com/gtag/js?id=G-T6JF1Q4B7T"
+		></script>
+		<script>
+			window.dataLayer = window.dataLayer || [];
+			function gtag() {
+				dataLayer.push(arguments);
+			}
+			gtag("js", new Date());
+
+			gtag("config", "G-T6JF1Q4B7T");
+		</script>
+
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "Organization",
+				"url": "https://alert.mahsanet.com",
+				"name": "Mahsa Alert - by Mahsanet",
+				"logo": "https://alert.mahsanet.com/assets/img/logo.jpeg",
+				"description": "Early warning and shelter map for crisis events in Iran"
+			}
+		</script>
+	</head>
+	<body>
+		<div id="root"></div>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
 </html>

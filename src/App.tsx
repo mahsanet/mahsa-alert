@@ -6,7 +6,10 @@ import Layout from "./components/Layout";
 import LocateButton from "./components/LocateButton";
 import LocationTooltip from "./components/LocationTooltip";
 import MapComponent from "./components/MapComponent";
+import { OfflineIndicator } from "./components/OfflineIndicator";
 import ProximityAlert from "./components/ProximityAlert";
+import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
+import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import ThemeToggle from "./components/ThemeToggle";
 import { BordersProvider } from "./map-entities/borders/borders.context";
 import { LayersProvider } from "./map-entities/layers/layers.context";
@@ -94,6 +97,10 @@ function App() {
 								tooltipState={tooltipState}
 								onClose={() => setTooltipState(null)}
 							/>
+							{/* PWA Components */}
+							<OfflineIndicator />
+							<PWAUpdatePrompt />
+							<PWAInstallPrompt />
 						</BordersProvider>
 					</LayersProvider>
 				</UserLocationProvider>
