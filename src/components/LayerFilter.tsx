@@ -1,7 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { FaFilter, FaTimes } from "react-icons/fa";
-import { useLayers } from "@/map-entities/layers";
+import { useLayers } from "@/map-entities/layers/layers.context";
 import { useTheme } from "@/ui/theme-provider";
 
 const LayerFilter: React.FC<{ className?: string }> = ({ className }) => {
